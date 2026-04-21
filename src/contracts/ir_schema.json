@@ -1,0 +1,404 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Level Design IR Schema v3.1",
+  "description": "6维度中间表示（Intermediate Representation），是所有Agent和Skill的统一通信协议。所有输入（图片、对话、文档）都在InputProcessor阶段被转化为此格式，下游Skill永远不接触原始输入。",
+  "type": "object",
+  "required": ["level_id", "level_name", "type", "SPACE", "FLOW", "FEEL", "MECHANIC", "ASSET", "SYSTEM"],
+  "properties": {
+    "level_id": {
+      "type": "string",
+      "description": "关卡唯一标识符，格式：{type}_{location}_{序号}，如 stealth_museum_01"
+    },
+    "level_name": {
+      "type": "string",
+      "description": "关卡显示名称，如 '艺术馆潜行'"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["POI", "MainMission", "SideQuest", "OpenWorldEvent"],
+      "description": "关卡类型"
+    },
+    "version": {
+      "type": "string",
+      "description": "IR版本号，语义化版本，如 1.0.0"
+    },
+    "last_modified": {
+      "type": "string",
+      "format": "date-time",
+      "description": "最后修改时间"
+    },
+    "last_modified_by": {
+      "type": "string",
+      "description": "最后修改者（agent_id 或 human_id）"
+    },
+
+    "SPACE": {
+      "type": "object",
+      "description": "空间维度：拓扑结构、区域定义、尺度比例、视线关系",
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "function"],
+            "properties": {
+              "id": { "type": "string", "description": "区域唯一ID" },
+              "name": { "type": "string", "description": "区域名称" },
+              "function": { "type": "string", "description": "区域功能定义（如：入口、战斗区、安全区）" },
+              "connections": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "与其他区域的连接关系（region_id列表）"
+              },
+              "spatial_notes": { "type": "string", "description": "空间描述（尺度、形状、特征）" },
+              "elevation": { "type": "string", "description": "海拔/层级描述" },
+              "sight_lines": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "视线可达的区域ID列表"
+              }
+            }
+          }
+        },
+        "critical_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "主路径经过的区域ID序列"
+        },
+        "optional_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "可选路径经过的区域ID序列"
+        },
+        "total_area_estimate": { "type": "string", "description": "总面积估算" },
+        "environment_type": { "type": "string", "description": "环境类型（室内/室外/混合）" }
+      }
+    },
+
+    "FLOW": {
+      "type": "object",
+      "description": "流程维度：玩家动线、分支逻辑、触发条件、失败路径",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "type"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "type": {
+                "type": "string",
+                "enum": ["start", "end", "action", "decision", "event", "checkpoint", "combat", "stealth", "puzzle", "dialogue", "cutscene"],
+                "description": "节点类型"
+              },
+              "description": { "type": "string" },
+              "region": { "type": "string", "description": "所在区域ID（关联SPACE维度）" },
+              "estimated_duration": { "type": "string", "description": "预估玩家停留时间" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "condition": { "type": "string", "description": "触发条件" },
+              "type": {
+                "type": "string",
+                "enum": ["normal", "branch", "fail", "optional", "loop"],
+                "default": "normal"
+              },
+              "label": { "type": "string", "description": "边的标签（用于图表显示）" }
+            }
+          }
+        },
+        "critical_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "关键路径的节点ID序列"
+        }
+      }
+    },
+
+    "FEEL": {
+      "type": "object",
+      "description": "体验维度：情绪曲线、氛围定义、视觉参考、音频意图",
+      "properties": {
+        "emotional_beats": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node", "emotion"],
+            "properties": {
+              "node": { "type": "string", "description": "对应的FLOW节点ID" },
+              "emotion": {
+                "type": "string",
+                "description": "情绪类型（如：tension_low, tension_spike, relief, wonder, dread）"
+              },
+              "intensity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "情绪强度 0.0-1.0"
+              },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "visual_references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "url": { "type": "string" },
+              "mood_keywords": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "audio_intent": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "region": { "type": "string", "description": "对应的SPACE区域ID" },
+              "mood": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "overall_tone": { "type": "string", "description": "整体基调描述" }
+      }
+    },
+
+    "MECHANIC": {
+      "type": "object",
+      "description": "机制维度：玩法规则、交互逻辑、AI行为、数值参数",
+      "properties": {
+        "mechanics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "rules": { "type": "string", "description": "玩法规则描述" },
+              "parameters": { "type": "object", "description": "数值参数" }
+            }
+          }
+        },
+        "ai_behaviors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "npc_type": { "type": "string" },
+              "behavior": { "type": "string" },
+              "parameters": { "type": "object" },
+              "patrol_route": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "巡逻路线（区域ID序列）"
+              }
+            }
+          }
+        },
+        "difficulty_parameters": {
+          "type": "object",
+          "description": "难度相关参数"
+        }
+      }
+    },
+
+    "ASSET": {
+      "type": "object",
+      "description": "资产维度：美术资产、物件清单、特效需求、动画需求",
+      "properties": {
+        "required_assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "description": "资产类型（mesh/material/vfx/animation/sound）" },
+              "count": { "type": "number", "default": 1 },
+              "notes": { "type": "string" },
+              "priority": { "type": "string", "enum": ["must_have", "nice_to_have"] },
+              "region": { "type": "string", "description": "放置区域ID" }
+            }
+          }
+        },
+        "reuse_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_level": { "type": "string" },
+              "asset_id": { "type": "string" },
+              "notes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "SYSTEM": {
+      "type": "object",
+      "description": "系统维度：依赖系统、接口需求、数据结构、技术约束",
+      "properties": {
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "system_name": { "type": "string" },
+              "version": { "type": "string" },
+              "usage": { "type": "string" }
+            }
+          }
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "技术约束条件列表"
+        }
+      }
+    },
+
+    "uncertainty_flags": {
+      "type": "array",
+      "description": "不确定性标记——策划未明确、AI推断的字段",
+      "items": {
+        "type": "object",
+        "required": ["field", "note"],
+        "properties": {
+          "field": { "type": "string", "description": "IR字段路径，如 SPACE.regions[2].spatial_notes" },
+          "note": { "type": "string", "description": "说明为什么不确定" }
+        }
+      }
+    },
+
+    "source_refs": {
+      "type": "array",
+      "description": "输入来源引用——溯源到原始输入",
+      "items": {
+        "type": "object",
+        "required": ["type", "summary"],
+        "properties": {
+          "type": { "type": "string", "enum": ["text", "image", "dialogue", "document"] },
+          "path": { "type": "string", "description": "文件路径或URL" },
+          "summary": { "type": "string", "description": "内容摘要" }
+        }
+      }
+    },
+
+    "downstream_refs": {
+      "type": "array",
+      "description": "下游引用——记录被哪些产物/操作消费过（v2.0新增，Phase 1可为空）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "consumer": { "type": "string", "description": "消费者ID（skill_name 或 agent_id）" },
+          "field_consumed": { "type": "string", "description": "被消费的IR字段路径" },
+          "artifact_produced": { "type": "string", "description": "产出的产物标识" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+
+    "case_instance": {
+      "type": ["object", "null"],
+      "description": "情境实例层（v3.1新增）——当IR描述的是通用玩法机制时，此字段承载一个具体应用场景的情境数据。通用层（MECHANIC/SYSTEM/FLOW等）描述「这个玩法是什么、怎么运转」，case_instance描述「在某个关卡中具体怎么用」。空间类(POI/MainMission/SideQuest)通常不需要此字段。玩法类(OpenWorldEvent)推荐填写，用于验证通用设计在实际情境中的可行性。",
+      "properties": {
+        "context_name": {
+          "type": "string",
+          "description": "情境名称，如「小东京大宅主动线」"
+        },
+        "context_source": {
+          "type": "string",
+          "description": "情境来源（关联的POI/任务/文档路径）"
+        },
+        "instance_points": {
+          "type": "array",
+          "description": "玩法在该情境中的具体实例点配置",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string", "description": "实例点ID" },
+              "type": { "type": "string", "description": "实例类型（对应通用层的分类，如A/B类）" },
+              "location": { "type": "string", "description": "在情境中的具体位置" },
+              "narrative_summary": { "type": "string", "description": "叙事内容摘要" },
+              "on_complete_action": { "type": "string", "description": "完成后的情境级行为" },
+              "on_interrupt_action": { "type": "string", "description": "打断后的情境级行为（如适用）" },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "emotional_context": {
+          "type": "object",
+          "description": "情境级情绪设计（区别于通用层FEEL中的单点情绪）",
+          "properties": {
+            "narrative_arc": { "type": "string", "description": "在该情境中的叙事弧线定位" },
+            "pacing_role": { "type": "string", "description": "在该情境节奏中扮演的角色（如：张弛交替的'弛'）" },
+            "contextual_beats": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "instance_id": { "type": "string", "description": "对应instance_points的ID" },
+                  "emotion": { "type": "string" },
+                  "intensity": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "asset_overrides": {
+          "type": "object",
+          "description": "情境级资产覆盖/补充（具体数量、特定资产等）",
+          "properties": {
+            "counts": {
+              "type": "object",
+              "description": "情境中各类实例的具体数量",
+              "additionalProperties": { "type": "integer" }
+            },
+            "specific_assets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "type": { "type": "string" },
+                  "notes": { "type": "string" },
+                  "instance_id": { "type": "string", "description": "关联的实例点ID" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

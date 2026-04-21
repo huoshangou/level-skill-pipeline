@@ -1,0 +1,169 @@
+<!--
+    MODULE: emotion_curve
+    REQUIRED IR DIMENSIONS: IR.FEEL + IR.FLOW
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Tone Summary, SVG Chart, Data Table
+      - SVG chart: 920x280 viewBox, area gradient fill, polyline, circles with emotion colors
+      - Beat divider lines (dashed) in SVG
+      - Data table columns: #, 节点, 情绪类型, 强度, 可视化, 备注
+      - intensity-bar: inline-block bar proportional to intensity
+      - Module badge: [EMOTION CURVE]
+      - Footer: Level Design Agent · EmotionCurve Skill v1.0 · 数据来源: IR.FEEL + IR.FLOW
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情绪节奏曲线 — {{level_name}}</title>
+    <style>
+        :root {
+            --bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;
+            --text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;
+            --accent:#FF4500;--border:#111111;--border-light:#CCCCCC;
+            --green:#228B22;--blue:#4169E1;
+            --emo-tension-low:#E8F5E9;--emo-tension-high:#FFF3E0;--emo-tension-spike:#FFEBEE;
+            --emo-relief:#E3F2FD;--emo-excitement:#FFF8E1;--emo-calm:#F5F5F5;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+        .tone-summary{padding:16px 20px;background:var(--bg-card);border:2px solid var(--border);margin-bottom:24px;font-size:14px;color:var(--text-secondary);border-left:4px solid var(--accent);}
+        .tone-summary strong{color:var(--text-primary);}
+
+        /* chart container */
+        .chart-container{background:var(--bg-card);border:2px solid var(--border);padding:24px 16px 16px;margin-bottom:24px;overflow-x:auto;}
+        .chart-svg{display:block;margin:0 auto;}
+
+        /* beat labels below chart */
+        .beat-markers{display:flex;margin-top:8px;border-top:2px solid var(--border);}
+        .beat-marker{flex:1;text-align:center;padding:8px 4px;font-size:10px;color:var(--text-muted);border-right:1px dashed var(--border-light);}
+        .beat-marker:last-child{border-right:none;}
+        .beat-marker-name{font-weight:600;color:var(--text-secondary);font-size:11px;}
+
+        /* data table */
+        .data-table{margin-top:16px;}
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:8px 10px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:8px 10px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .intensity-bar{display:inline-block;height:12px;background:var(--accent);opacity:.7;vertical-align:middle;margin-right:6px;}
+        .emo-dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px;}
+
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+
+<section class="module" data-module="emotion-curve" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[EMOTION CURVE]</div>
+        <h1>情绪节奏曲线 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>关键路径节点: {{critical_node_count}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="tone-summary">
+        <strong>整体基调：</strong>{{overall_tone}}
+    </div>
+
+    <!-- SVG CHART -->
+    <!-- SVG: Generate from IR data, follow this exact structure -->
+    <div class="chart-container">
+        <svg class="chart-svg" width="920" height="280" viewBox="0 0 920 280">
+            <!-- grid -->
+            <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#FF4500" stop-opacity="0.15"/>
+                    <stop offset="100%" stop-color="#FF4500" stop-opacity="0.02"/>
+                </linearGradient>
+            </defs>
+
+            <!-- Y axis labels -->
+            <text x="28" y="28" font-size="10" fill="#666" text-anchor="end">1.0</text>
+            <text x="28" y="78" font-size="10" fill="#666" text-anchor="end">0.7</text>
+            <text x="28" y="138" font-size="10" fill="#666" text-anchor="end">0.5</text>
+            <text x="28" y="198" font-size="10" fill="#666" text-anchor="end">0.2</text>
+            <text x="28" y="248" font-size="10" fill="#666" text-anchor="end">0.0</text>
+
+            <!-- grid lines -->
+            <line x1="40" y1="25" x2="900" y2="25" stroke="#E8E8E4" stroke-width="1"/>
+            <line x1="40" y1="75" x2="900" y2="75" stroke="#E8E8E4" stroke-width="1"/>
+            <line x1="40" y1="135" x2="900" y2="135" stroke="#E8E8E4" stroke-width="1"/>
+            <line x1="40" y1="195" x2="900" y2="195" stroke="#E8E8E4" stroke-width="1"/>
+            <line x1="40" y1="245" x2="900" y2="245" stroke="#111" stroke-width="2"/>
+
+            <!-- SVG: Generate beat dividers, area polygon, polyline, circles, and labels from IR.FEEL data
+                 Beat dividers: vertical dashed lines between beats
+                 Beat labels: text at top of each beat section
+                 Y mapping: intensity 0.0 → y=245, intensity 1.0 → y=25 (range=220)
+                 X spacing: distribute nodes evenly across 40-900 range, grouped by beat
+                 Area fill: polygon using points + closing to baseline y=245
+                 Line: polyline connecting all points
+                 Circles: r=6 normal, r=7 for spike/relief/end nodes, fill=emotion color
+                 Labels: rotated -45deg text below x-axis
+            -->
+
+            <!-- REPEAT: beat dividers (one per beat boundary) -->
+            <line x1="{{beat_divider_x}}" y1="15" x2="{{beat_divider_x}}" y2="245" stroke="#CCC" stroke-width="1" stroke-dasharray="4,3"/>
+
+            <!-- REPEAT: beat section labels -->
+            <text x="{{beat_label_x}}" y="12" font-size="9" fill="#999" text-anchor="middle">{{beat_name}}</text>
+
+            <!-- area fill -->
+            <polygon points="{{area_points}}" fill="url(#areaGrad)"/>
+
+            <!-- line -->
+            <polyline points="{{line_points}}"
+                fill="none" stroke="#FF4500" stroke-width="2.5" stroke-linejoin="round"/>
+
+            <!-- REPEAT: one circle per critical path node -->
+            <circle cx="{{node_x}}" cy="{{node_y}}" r="{{node_r}}" fill="{{emo_color}}" stroke="#333" stroke-width="1.5"/>
+
+            <!-- REPEAT: one rotated label per critical path node -->
+            <text x="{{node_x}}" y="262" font-size="9" fill="#666" text-anchor="end" transform="rotate(-45,{{node_x}},262)">{{node_short_label}}</text>
+        </svg>
+    </div>
+
+    <!-- DATA TABLE -->
+    <div class="data-table">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>#</th><th>节点</th><th>情绪类型</th><th>强度</th><th>可视化</th><th>备注</th></tr>
+                </thead>
+                <tbody>
+                    <!-- REPEAT: one row per critical path node from IR.FLOW -->
+                    <tr>
+                        <td>{{node_index}}</td>
+                        <td>{{node_label}}</td>
+                        <td><span class="emo-dot" style="background:{{emo_color}};border:1px solid #ccc;"></span>{{emo_type_label}}</td>
+                        <td>{{intensity}}</td>
+                        <td><span class="intensity-bar" style="width:{{intensity_bar_width}}px;"></span>{{intensity_percent}}%</td>
+                        <td>{{node_note}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · EmotionCurve Skill v1.0</span>
+        <span>数据来源: IR.FEEL + IR.FLOW</span>
+    </div>
+
+</section>
+</body>
+</html>

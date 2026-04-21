@@ -1,0 +1,41 @@
+skill_name: "SpatialTopology"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P0"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "SPACE.regions"
+      description: "区域定义，每个区域是一个拓扑节点"
+    - path: "SPACE.critical_path"
+      description: "主路径区域序列，用于高亮关键连接"
+    - path: "SPACE.optional_paths"
+      description: "可选路径，虚线连接"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "spatial-topology"
+  structure:
+    - "图例（关键路径区域/可选区域/关键连接/可选连接）"
+    - "SVG 拓扑图（区域矩形 + 连接路径 + 楼层分隔线）"
+    - "区域数据表（区域ID/名称/功能/楼层/连接/路径/空间说明）"
+
+quality:
+  auto_checks:
+    - name: "region_coverage"
+      rule: "输出拓扑节点集 == IR.SPACE.regions 区域集"
+      severity: "error"
+    - name: "critical_path_highlighted"
+      rule: "关键路径区域和连接有视觉区分（实线粗边框 vs 虚线）"
+      severity: "warning"
+    - name: "connection_valid"
+      rule: "所有连接线两端的区域 ID 均存在于 regions 定义中"
+      severity: "error"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "空间拓扑图，嵌入到组装文档中"

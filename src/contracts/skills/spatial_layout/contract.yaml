@@ -1,0 +1,74 @@
+skill_name: "SpatialLayout"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+description: "从 LevelCraft 2D 导出的 layout JSON 生成只读 2D/3D 空间布局查看器"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "SPACE.regions"
+      description: "区域定义，用于标注和交叉验证"
+    - path: "SPACE.environment_type"
+      description: "环境类型（室内/室外/混合）"
+  external_data:
+    - path: "layout_data.json"
+      source: "LevelCraft 2D 导出"
+      format: "LevelCraft JSON"
+      required: true
+      description: "设计师在 LevelCraft 2D 工具中绘制并导出的布局数据"
+      schema_fields:
+        - "name: 关卡名称"
+        - "gridSize: 网格大小(px)"
+        - "shapes[]: 房间/区域矩形数组 (id, label, x, y, width, height, rotation, color, layerId, strokeExclusions[], strokeWindows[], wallHeight, isStairs)"
+        - "entities[]: 实体数组 (id, type, position, layerId)"
+        - "layers[]: 图层/楼层数组 (id, name, height, color, showWalls, wallTargetLayerId)"
+        - "doorColorConfigs[]: 门颜色配置"
+        - "windowColorConfigs[]: 窗颜色配置"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "spatial-layout"
+  structure:
+    - "模块头: 关卡名 + 楼层/房间/门窗统计"
+    - "图例: 楼层颜色、门、窗、楼梯、实体图标"
+    - "2D/3D 视图切换按钮"
+    - "2D 视图: SVG 渲染所有楼层布局（按楼层分组 + 标注）"
+    - "3D 视图: Three.js 交互预览（旋转/缩放/平移，按楼层高度挤出墙体）"
+    - "区域数据表: 名称、楼层、面积、门数、窗数"
+  external_dependencies:
+    - name: "Three.js"
+      version: "0.170.0"
+      source: "CDN (jsdelivr)"
+      fallback: "3D 视图不可用时显示提示，2D 视图始终可用"
+
+quality:
+  auto_checks:
+    - name: "layout_data_exists"
+      rule: "layout_data.json 文件存在且为有效 JSON"
+      severity: "error"
+    - name: "shapes_not_empty"
+      rule: "shapes 数组非空"
+      severity: "error"
+    - name: "layers_defined"
+      rule: "layers 数组非空"
+      severity: "warning"
+    - name: "label_coverage"
+      rule: "所有可见 shape 都有 label"
+      severity: "warning"
+
+type_routing:
+  POI: "required"
+  MainMission: "required"
+  SideQuest: "required"
+  OpenWorldEvent: "skip"
+  OpenWorldChallenge: "skip"
+  collection_phase: "Phase 1.7 固定询问设计师提供 layout_data.json + layout_assets.json"
+  skip_behavior: "设计师跳过时 status=skipped，文档中不出现此模块"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "空间布局 2D/3D 视图，嵌入到组装文档中"

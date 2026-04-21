@@ -1,0 +1,215 @@
+<!--
+    MODULE: level_overview (gameplay variant)
+    REQUIRED IR DIMENSIONS: ALL (IR 全维度)
+    VARIANT: gameplay — 用于 OpenWorldEvent / OpenWorldChallenge 类型
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: 玩法基本信息, 设计意图, 玩法机制说明, 3C需求表, 合作需求清单
+      - Property table: 2-column grid with label(180px)+value
+      - Module badge: [GAMEPLAY OVERVIEW]
+      - Footer: Level Design Agent · LevelOverview v1.0 (Gameplay) · 数据来源: ALL (IR 全维度)
+      - 合作需求清单: 固定 11 组 22 项，不可增删行，仅填写 是/否 + 备注
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玩法概览 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+
+        /* property table */
+        .prop-table{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:24px;border:2px solid var(--border);}
+        .prop-row{display:flex;border-bottom:1px solid var(--border-light);}
+        .prop-row:last-child{border-bottom:none;}
+        .prop-label{width:180px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text-secondary);background:var(--bg-secondary);border-right:1px solid var(--border-light);flex-shrink:0;}
+        .prop-value{flex:1;padding:10px 14px;font-size:13px;color:var(--text-primary);}
+        .prop-full{grid-column:1/-1;}
+        .prop-full .prop-label{width:180px;}
+
+        /* tags */
+        .tag{display:inline-block;padding:2px 10px;font-size:10px;font-weight:600;letter-spacing:.5px;border:1px solid;}
+        .tag.type{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.yes{border-color:var(--green);color:var(--green);}
+        .tag.no{border-color:var(--text-muted);color:var(--text-muted);}
+
+        .section-title{font-size:14px;font-weight:600;margin:24px 0 10px;padding-left:10px;border-left:3px solid var(--accent);}
+
+        .callout{padding:16px 20px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid var(--accent);margin:16px 0;font-size:13px;color:var(--text-secondary);line-height:1.7;}
+        .callout strong{color:var(--text-primary);}
+
+        /* 3C table */
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin:12px 0;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:8px 10px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:8px 10px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);}
+        tr:hover td{background:rgba(255,69,0,.03);}
+
+        /* group header row */
+        .group-header td{background:var(--bg-secondary);font-weight:600;color:var(--text-primary);font-size:11px;letter-spacing:.5px;}
+
+        /* mechanism cards */
+        .mech-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;}
+        .mech-card{background:var(--bg-card);border:2px solid var(--border);padding:16px;}
+        .mech-card h4{font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;}
+        .mech-card p{font-size:12px;color:var(--text-secondary);line-height:1.6;}
+        .mech-card .mech-meta{font-size:11px;color:var(--text-muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light);}
+
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media(max-width:800px){.prop-table{grid-template-columns:1fr;}.mech-grid{grid-template-columns:1fr;}}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="level-overview" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[GAMEPLAY OVERVIEW]</div>
+        <h1>玩法概览 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>玩法 ID: {{level_id}}</span>
+            <span>版本: {{version}}</span>
+            <span>最后修改: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <!-- ===== 玩法基本信息 ===== -->
+    <div class="section-title">玩法基本信息</div>
+    <div class="prop-table">
+        <div class="prop-row prop-full">
+            <div class="prop-label">玩法名称</div>
+            <div class="prop-value">{{level_name}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">玩法类型</div>
+            <div class="prop-value"><span class="tag type">{{type}}</span></div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">参与人数</div>
+            <div class="prop-value">{{participant_count}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">预计单次时长</div>
+            <div class="prop-value">{{duration}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">是否可复用</div>
+            <div class="prop-value"><span class="tag {{is_reusable_tag}}">{{is_reusable}}</span> {{reusable_detail}}</div>
+        </div>
+        <div class="prop-row prop-full">
+            <div class="prop-label">触发条件</div>
+            <div class="prop-value">{{trigger_condition}}</div>
+        </div>
+        <div class="prop-row prop-full">
+            <div class="prop-label">完成条件</div>
+            <div class="prop-value">{{completion_condition}}</div>
+        </div>
+        <div class="prop-row prop-full">
+            <div class="prop-label">中止条件</div>
+            <div class="prop-value">{{abort_condition}}</div>
+        </div>
+    </div>
+
+    <!-- ===== 设计意图 ===== -->
+    <div class="section-title">设计意图</div>
+    <div class="callout">
+        <strong>核心体验：</strong>{{one_line_summary}}
+    </div>
+    <div class="callout">
+        <strong>参考作品：</strong>{{references}}
+    </div>
+
+    <!-- ===== 玩法机制说明 ===== -->
+    <div class="section-title">玩法机制说明</div>
+    <div class="mech-grid">
+        <!-- REPEAT: one mech-card per mechanic from IR.MECHANIC.mechanics -->
+        <div class="mech-card">
+            <h4>{{mech_name}}</h4>
+            <p>{{mech_description}}</p>
+            <div class="mech-meta">类别: {{mech_category}} · 玩家行为约束: {{mech_constraints}}</div>
+        </div>
+    </div>
+
+    <!-- ===== 3C 需求表 ===== -->
+    <div class="section-title">3C 需求表</div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>维度</th><th>需求说明</th><th>备注</th></tr></thead>
+            <tbody>
+                <!-- REPEAT: one row per 3C dimension -->
+                <tr><td>{{threec_dimension}}</td><td>{{threec_requirement}}</td><td>{{threec_note}}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== 合作需求清单（标准模板 11组22项，不可增删行） ===== -->
+    <div class="section-title">合作需求清单</div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th style="width:120px">合作组</th><th style="width:180px">需求项</th><th style="width:60px">是否需要</th><th>备注</th></tr></thead>
+            <tbody>
+                <!-- 文案组 -->
+                <tr class="group-header"><td colspan="4">文案组</td></tr>
+                <tr><td>文案组</td><td>玩法包装需求</td><td>{{req_01}}</td><td>{{req_01_note}}</td></tr>
+                <tr><td>文案组</td><td>物件包装需求</td><td>{{req_02}}</td><td>{{req_02_note}}</td></tr>
+                <!-- 角色组 -->
+                <tr class="group-header"><td colspan="4">角色组</td></tr>
+                <tr><td>角色组</td><td>3C需求</td><td>{{req_03}}</td><td>{{req_03_note}}</td></tr>
+                <tr><td>角色组</td><td>角色动作</td><td>{{req_04}}</td><td>{{req_04_note}}</td></tr>
+                <!-- 物理组 -->
+                <tr class="group-header"><td colspan="4">物理组</td></tr>
+                <tr><td>物理组</td><td>非破坏类物理表现</td><td>{{req_05}}</td><td>{{req_05_note}}</td></tr>
+                <tr><td>物理组</td><td>可破坏物</td><td>{{req_06}}</td><td>{{req_06_note}}</td></tr>
+                <!-- GPP -->
+                <tr class="group-header"><td colspan="4">GPP</td></tr>
+                <tr><td>GPP</td><td>引擎动画</td><td>{{req_07}}</td><td>{{req_07_note}}</td></tr>
+                <!-- 美术 -->
+                <tr class="group-header"><td colspan="4">美术</td></tr>
+                <tr><td>美术</td><td>原画</td><td>{{req_08}}</td><td>{{req_08_note}}</td></tr>
+                <tr><td>美术</td><td>模型</td><td>{{req_09}}</td><td>{{req_09_note}}</td></tr>
+                <tr><td>美术</td><td>特效</td><td>{{req_10}}</td><td>{{req_10_note}}</td></tr>
+                <tr><td>美术</td><td>音效</td><td>{{req_11}}</td><td>{{req_11_note}}</td></tr>
+                <tr><td>美术</td><td>骨骼动画</td><td>{{req_12}}</td><td>{{req_12_note}}</td></tr>
+                <!-- 系统组 -->
+                <tr class="group-header"><td colspan="4">系统组</td></tr>
+                <tr><td>系统组</td><td>系统组合作需求</td><td>{{req_13}}</td><td>{{req_13_note}}</td></tr>
+                <tr><td>系统组</td><td>UX交互稿</td><td>{{req_14}}</td><td>{{req_14_note}}</td></tr>
+                <tr><td>系统组</td><td>提示UI</td><td>{{req_15}}</td><td>{{req_15_note}}</td></tr>
+                <tr><td>系统组</td><td>非提示UI与UI动效</td><td>{{req_16}}</td><td>{{req_16_note}}</td></tr>
+                <tr><td>系统组</td><td>地图系统UI</td><td>{{req_17}}</td><td>{{req_17_note}}</td></tr>
+                <!-- 地图组 -->
+                <tr class="group-header"><td colspan="4">地图组</td></tr>
+                <tr><td>地图组</td><td>灯光</td><td>{{req_18}}</td><td>{{req_18_note}}</td></tr>
+                <!-- 载具组 -->
+                <tr class="group-header"><td colspan="4">载具组</td></tr>
+                <tr><td>载具组</td><td>载具组合作需求</td><td>{{req_19}}</td><td>{{req_19_note}}</td></tr>
+                <!-- AI组 -->
+                <tr class="group-header"><td colspan="4">AI组</td></tr>
+                <tr><td>AI组</td><td>AI组合作需求</td><td>{{req_20}}</td><td>{{req_20_note}}</td></tr>
+                <!-- 战斗组 -->
+                <tr class="group-header"><td colspan="4">战斗组</td></tr>
+                <tr><td>战斗组</td><td>战斗组合作需求</td><td>{{req_21}}</td><td>{{req_21_note}}</td></tr>
+                <!-- 任务组 -->
+                <tr class="group-header"><td colspan="4">任务组</td></tr>
+                <tr><td>任务组</td><td>任务组合作需求</td><td>{{req_22}}</td><td>{{req_22_note}}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · LevelOverview Skill v1.0 (Gameplay)</span>
+        <span>数据来源: ALL (IR 全维度)</span>
+    </div>
+
+</section>
+</body>
+</html>

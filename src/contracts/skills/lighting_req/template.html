@@ -1,0 +1,113 @@
+<!--
+    MODULE: lighting_req
+    REQUIRED IR DIMENSIONS: IR.FEEL + IR.SPACE
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Design Callout, Region Lighting Table, Transition Table
+      - Region table columns: 区域, 楼层, 主光源, 色温/色调, 亮度倾向, 特殊灯光, 情绪支撑, 参考
+      - Transition table columns: 触发点, 灯光变化, 过渡方式, 时长建议
+      - color-swatch: 16x16 inline color preview
+      - Module badge: [LIGHTING REQUIREMENTS]
+      - Footer: Level Design Agent · LightingReq Skill v1.0 · 数据来源: IR.FEEL + IR.SPACE
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灯光需求表 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin-bottom:20px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:10px 12px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .section-title{font-size:14px;font-weight:600;margin:20px 0 8px;padding-left:10px;border-left:3px solid var(--accent);}
+        .callout{padding:12px 16px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid var(--accent);margin-bottom:20px;font-size:13px;color:var(--text-secondary);}
+        .color-swatch{display:inline-block;width:16px;height:16px;border:1px solid var(--border-light);vertical-align:middle;margin-right:6px;}
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="lighting-req" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[LIGHTING REQUIREMENTS]</div>
+        <h1>灯光需求表 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>区域数: {{region_count}}</span>
+            <span>环境: {{environment}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="callout">
+        <strong>灯光设计总纲：</strong>{{lighting_overview}}
+    </div>
+
+    <div class="section-title">按区域灯光方案</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>区域</th>
+                    <th>楼层</th>
+                    <th>主光源</th>
+                    <th>色温/色调</th>
+                    <th>亮度倾向</th>
+                    <th>特殊灯光</th>
+                    <th>情绪支撑</th>
+                    <th>参考</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- REPEAT: one row per region from IR.SPACE -->
+                <tr>
+                    <td><strong>{{region_name}}</strong><br><code style="font-size:9px;">{{region_id}}</code></td>
+                    <td>{{floor}}</td>
+                    <td>{{primary_light}}</td>
+                    <td><span class="color-swatch" style="background:{{color_temp_swatch}};"></span>{{color_temp_desc}}</td>
+                    <td>{{brightness}}</td>
+                    <td>{{special_lights}}</td>
+                    <td>{{emotion_support}}</td>
+                    <td>{{reference}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">灯光转场节点</div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>触发点</th><th>灯光变化</th><th>过渡方式</th><th>时长建议</th></tr></thead>
+            <tbody>
+                <!-- REPEAT: one row per lighting transition from IR.FEEL -->
+                <tr>
+                    <td>{{trigger_point}}</td>
+                    <td>{{light_change}}</td>
+                    <td>{{transition_type}}</td>
+                    <td>{{duration}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · LightingReq Skill v1.0</span>
+        <span>数据来源: IR.FEEL + IR.SPACE</span>
+    </div>
+
+</section>
+</body>
+</html>

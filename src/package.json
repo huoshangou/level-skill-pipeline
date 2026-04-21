@@ -1,0 +1,16 @@
+{
+  "name": "levelagent",
+  "version": "1.0.0",
+  "description": "> 大世界关卡设计 AI Agent — 从设计方案到完整关卡文档的自动化管线",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "elkjs": "^0.11.1"
+  }
+}

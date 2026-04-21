@@ -1,0 +1,296 @@
+#!/usr/bin/env node
+/**
+ * assemble_document.js v2
+ *
+ * 用法: node assemble_document.js <case_dir>
+ * 示例: node assemble_document.js outputs/case_01_truck
+ *
+ * 将 case 目录下所有已锁定模块 HTML 组装为一份完整的关卡设计文档。
+ * 对齐 poi_document.html 的结构：
+ *   - 固定左侧导航栏（240px）
+ *   - Hero 封面区域
+ *   - 合并所有模块的 CSS 到统一 <style>
+ *   - 模块 section 用 .module-section-wrapper 包裹
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const caseDir = process.argv[2];
+if (!caseDir) {
+    console.error('用法: node assemble_document.js <case_dir>');
+    process.exit(1);
+}
+
+const projectRoot = path.resolve(__dirname, '..');
+const casePath = path.resolve(projectRoot, caseDir);
+const manifestPath = path.join(casePath, 'manifest.json');
+
+if (!fs.existsSync(manifestPath)) {
+    console.error(`找不到 ${manifestPath}`);
+    process.exit(1);
+}
+
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+
+// 读取 IR 获取元信息
+const testCaseId = manifest.case_id || path.basename(casePath);
+const irPath = path.join(projectRoot, 'test_cases', testCaseId, 'ir_filled.json');
+let irData = {};
+if (fs.existsSync(irPath)) {
+    irData = JSON.parse(fs.readFileSync(irPath, 'utf-8'));
+}
+
+const levelName = irData.level_name || testCaseId;
+const levelId = irData.level_id || testCaseId;
+const levelType = irData.type || 'Unknown';
+const irVersion = manifest.ir?.version || '?';
+const overallTone = irData.FEEL?.overall_tone || '';
+const timestamp = new Date().toISOString().split('T')[0];
+
+// 模块排列顺序（固定）
+const MODULE_ORDER = [
+    { key: 'level_overview',    label: '关卡概览',       icon: '01' },
+    { key: 'spatial_layout',    label: '空间布局 2D/3D', icon: '02', hasScripts: true },
+    { key: 'bubble_chart',      label: '玩法逻辑流程图', icon: '03' },
+    { key: 'emotion_curve',     label: '情绪节奏曲线',   icon: '04' },
+    { key: 'asset_list',        label: '美术资产需求表', icon: '05' },
+    { key: 'atmosphere_ref',    label: '氛围参考提示词', icon: '06' },
+    { key: 'storyboard',        label: '核心流程分镜',   icon: '07' },
+    { key: 'lighting_req',      label: '灯光需求表',     icon: '08' },
+    { key: 'vfx_req',           label: '特效需求表',     icon: '09' },
+    { key: 'audio_req',         label: '音频需求表',     icon: '10' },
+    { key: 'tech_req',          label: '程序需求文档',   icon: '11' },
+];
+
+// 从模块 HTML 中提取 <style>...</style> 内容（仅 CSS 内容）
+function extractStyles(html) {
+    const matches = [];
+    const re = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        matches.push(m[1]);
+    }
+    return matches.join('\n');
+}
+
+// 从模块 HTML 中提取 <section>...</section> 内容
+function extractSection(html) {
+    const match = html.match(/<section[\s\S]*?<\/section>/i);
+    return match ? match[0] : '';
+}
+
+// 从模块 HTML 中提取所有 <script> 标签（用于 spatial_layout 等含交互逻辑的模块）
+function extractScripts(html) {
+    const matches = [];
+    const re = /<script[^>]*>[\s\S]*?<\/script>/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        matches.push(m[0]);
+    }
+    return matches.join('\n');
+}
+
+// 收集所有模块
+const modules = [];
+const missingModules = [];
+
+for (const mod of MODULE_ORDER) {
+    const htmlFile = path.join(casePath, `${mod.key}.html`);
+    const modInfo = manifest.modules?.[mod.key];
+
+    if (!fs.existsSync(htmlFile)) {
+        missingModules.push(mod);
+        continue;
+    }
+
+    const html = fs.readFileSync(htmlFile, 'utf-8');
+    const section = extractSection(html);
+    const styles = extractStyles(html);
+
+    if (!section) {
+        missingModules.push(mod);
+        continue;
+    }
+
+    const scripts = mod.hasScripts ? extractScripts(html) : '';
+
+    modules.push({
+        ...mod,
+        section,
+        styles,
+        scripts,
+        status: modInfo?.status || 'unknown',
+        version: modInfo?.version || '?',
+    });
+}
+
+// 统计
+const totalModules = MODULE_ORDER.length;
+const lockedCount = modules.filter(m => m.status === 'locked').length;
+const score = manifest.scoring?.auto_score || '?';
+const scorePassed = manifest.scoring?.passed ? 'PASS' : 'FAIL';
+
+// IR 统计数据
+const regionCount = irData.SPACE?.regions?.length || '?';
+const nodeCount = irData.FLOW?.nodes?.length || '?';
+const mechCount = irData.MECHANIC?.mechanics?.length || '?';
+const assetCount = irData.ASSET?.required_assets?.length || '?';
+const sysDepCount = irData.SYSTEM?.dependencies?.length || '?';
+
+// 合并所有模块 CSS（以 /* === MODULE_KEY === */ 注释分隔）
+const mergedStyles = modules.map(m =>
+    `/* === ${m.key.toUpperCase()} === */\n${m.styles}`
+).join('\n\n');
+
+// 生成侧边导航链接
+const navLinks = modules.map(m =>
+    `            <a href="#module-${m.key}">${m.label}<span class="nav-status">v${m.version}</span></a>`
+).join('\n');
+
+// 生成模块 section（用 wrapper 包裹）
+const moduleSections = modules.map(m =>
+    `    <!-- MODULE ${m.icon}: ${m.label} -->
+    <div id="module-${m.key}" class="module-section-wrapper">
+        ${m.section}
+    </div>`
+).join('\n\n');
+
+// 组装完整 HTML
+const assembledHtml = `<!--
+    ASSEMBLED DOCUMENT: ${levelName}
+    GENERATED BY: pipeline/assemble_document.js v2
+    CASE: ${testCaseId}
+    MODULES: ${modules.length}/${totalModules}
+    TIMESTAMP: ${timestamp}
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${levelType.toUpperCase()} DESIGN — ${levelName}</title>
+    <style>
+        /* ===== ASSEMBLY SHELL (nav + hero + wrapper) ===== */
+        :root {
+            --bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;
+            --text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;
+            --accent:#FF4500;--border:#111111;--border-light:#CCCCCC;
+            --green:#228B22;--blue:#4169E1;
+            --emo-tension-low:#E8F5E9;--emo-tension-high:#FFF3E0;--emo-tension-spike:#FFEBEE;
+            --emo-relief:#E3F2FD;--emo-excitement:#FFF8E1;--emo-calm:#F5F5F5;
+            --emo-wonder:#F3E5F5;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;overflow-x:hidden;}
+
+        /* === FIXED LEFT NAV === */
+        .nav{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--bg-secondary);border-right:2px solid var(--border);padding:20px 0;overflow-y:auto;z-index:100;}
+        .nav-header{padding:0 16px 16px;border-bottom:1px solid var(--border-light);margin-bottom:12px;}
+        .nav-header h2{font-size:12px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;font-weight:600;}
+        .nav-header p{font-size:18px;font-weight:700;letter-spacing:-.5px;}
+        .nav-header .nav-type{font-size:11px;color:var(--text-muted);margin-top:2px;}
+        .nav-section{padding:6px 16px;}
+        .nav-section-title{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;padding-left:4px;}
+        .nav a{display:block;padding:6px 10px;color:var(--text-secondary);text-decoration:none;font-size:12px;margin-bottom:1px;border-left:2px solid transparent;transition:all .2s;}
+        .nav a:hover,.nav a.active{color:var(--accent);border-left-color:var(--accent);}
+        .nav a .nav-status{float:right;font-size:9px;color:var(--green);}
+        .nav-footer{padding:12px 16px;border-top:1px solid var(--border-light);margin-top:12px;}
+        .nav-footer-score{font-size:11px;color:var(--text-muted);}
+        .nav-footer-badge{display:inline-block;padding:2px 8px;border:1.5px solid var(--green);color:var(--green);font-weight:700;font-size:11px;margin-top:4px;}
+
+        /* === MAIN CONTENT === */
+        .main{margin-left:240px;}
+
+        /* === HERO === */
+        .hero{padding:48px 40px 36px;border-bottom:2px solid var(--border);}
+        .hero-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:12px;}
+        .hero h1{font-size:32px;font-weight:700;line-height:1.2;margin-bottom:12px;letter-spacing:-1px;}
+        .hero-desc{font-size:14px;color:var(--text-secondary);max-width:700px;margin-bottom:24px;line-height:1.7;}
+        .hero-stats{display:flex;gap:32px;flex-wrap:wrap;}
+        .hero-stat-value{font-size:24px;font-weight:700;color:var(--accent);}
+        .hero-stat-label{font-size:10px;color:var(--text-muted);margin-top:2px;letter-spacing:.5px;}
+
+        /* === MODULE WRAPPERS === */
+        .module-section-wrapper{padding:0;border-bottom:2px solid var(--border-light);}
+        .module-section-wrapper:last-child{border-bottom:none;}
+        .main .module-section-wrapper .module{max-width:100% !important;margin:0 !important;padding:40px;}
+
+        /* === POI FOOTER === */
+        .poi-footer{padding:24px 40px;border-top:2px solid var(--border);background:var(--bg-secondary);text-align:center;}
+        .poi-footer p{font-size:11px;color:var(--text-muted);letter-spacing:1px;}
+
+        /* === RESPONSIVE === */
+        @media(max-width:900px){.nav{display:none;}.main{margin-left:0;}.hero{padding:40px 20px 30px;}.module-section-wrapper .module{padding:30px 20px;}}
+        @media print{.nav{display:none;}.main{margin-left:0;}body{background:white;}.module-section-wrapper{page-break-inside:avoid;}}
+
+${mergedStyles}
+    </style>
+</head>
+<body>
+
+<!-- ===== LEFT NAVIGATION ===== -->
+<nav class="nav">
+    <div class="nav-header">
+        <h2>Level Design</h2>
+        <p>${levelName}</p>
+        <div class="nav-type">${levelType} · ${levelId}</div>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <a href="#hero">封面</a>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Modules (${modules.length})</div>
+${navLinks}
+    </div>
+
+    <div class="nav-footer">
+        <div class="nav-footer-score">自动评分</div>
+        <div class="nav-footer-badge">${score} ${scorePassed}</div>
+    </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="main">
+
+    <!-- HERO -->
+    <div class="hero" id="hero">
+        <div class="hero-badge">${levelType} DESIGN DOCUMENT</div>
+        <h1>${levelName}</h1>
+        <div class="hero-desc">${overallTone}</div>
+        <div class="hero-stats">
+            <div><div class="hero-stat-value">${regionCount}</div><div class="hero-stat-label">空间区域</div></div>
+            <div><div class="hero-stat-value">${nodeCount}</div><div class="hero-stat-label">流程节点</div></div>
+            <div><div class="hero-stat-value">${mechCount}</div><div class="hero-stat-label">机制系统</div></div>
+            <div><div class="hero-stat-value">${assetCount}</div><div class="hero-stat-label">所需资产</div></div>
+            <div><div class="hero-stat-value">${sysDepCount}</div><div class="hero-stat-label">系统依赖</div></div>
+            <div><div class="hero-stat-value">${modules.length}/${totalModules}</div><div class="hero-stat-label">模块数</div></div>
+        </div>
+    </div>
+
+    <!-- MODULES -->
+${moduleSections}
+
+    <!-- FOOTER -->
+    <div class="poi-footer">
+        <p>Level Design Agent · AssembleDocument v2.0 · Case: ${testCaseId} · IR: v${irVersion} · ${modules.length}/${totalModules} modules locked · Score: ${score} ${scorePassed} · ${timestamp}</p>
+    </div>
+
+</div>
+
+${modules.filter(m => m.scripts).map(m => `<!-- SCRIPTS: ${m.key} -->\n${m.scripts}`).join('\n')}
+
+</body>
+</html>`;
+
+const outputFile = path.join(casePath, 'assembled_document.html');
+fs.writeFileSync(outputFile, assembledHtml, 'utf-8');
+console.log(`✓ 组装完成: ${outputFile}`);
+console.log(`  模块: ${modules.length}/${totalModules}`);
+if (missingModules.length > 0) {
+    console.log(`  缺失: ${missingModules.map(m => m.key).join(', ')}`);
+}
+console.log(`  评分: ${score} ${scorePassed}`);

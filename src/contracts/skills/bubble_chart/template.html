@@ -1,0 +1,439 @@
+<!--
+    MODULE: bubble_chart
+    REQUIRED IR DIMENSIONS: IR.FLOW + IR.FEEL
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Legend, Flowchart (beat-sections with nodes), Score Summary
+      - Beat section: beat-label(120px) + beat-content with node-rows
+      - Node: min-width 110px, max-width 140px, emotion color class
+      - Beat dividers between sections
+      - Score grid: 4-column (结构完整性, 一致性, 规范符合度, 信息保真度)
+      - Module badge: [BUBBLE CHART]
+      - Footer: Level Design Agent · BubbleChart Skill v1.0 · 数据来源: IR.FLOW + IR.FEEL
+    NOTE: artmuseum used max-width:1200px but per rules this MUST be 1100px
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玩法流程气泡图 — {{level_name}}</title>
+    <style>
+        :root {
+            --bg-primary: #F4F4F0;
+            --bg-secondary: #E8E8E4;
+            --bg-card: #FFFFFF;
+            --text-primary: #111111;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --accent: #FF4500;
+            --border: #111111;
+            --border-light: #CCCCCC;
+            --green: #228B22;
+            --blue: #4169E1;
+            /* 情绪颜色 */
+            --emo-tension-low: #E8F5E9;
+            --emo-tension-high: #FFF3E0;
+            --emo-tension-spike: #FFEBEE;
+            --emo-relief: #E3F2FD;
+            --emo-excitement: #FFF8E1;
+            --emo-calm: #F5F5F5;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* === MODULE WRAPPER === */
+        .module {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 32px;
+        }
+
+        /* === HEADER === */
+        .module-header {
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+        .module-badge {
+            display: inline-block;
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .module-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .module-meta {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .module-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* === LEGEND === */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+        }
+        .legend-title {
+            width: 100%;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--border-light);
+        }
+        .legend-line {
+            width: 24px;
+            height: 0;
+            border-top: 3px solid var(--border);
+        }
+        .legend-line.dashed {
+            border-top: 2px dashed var(--text-muted);
+        }
+        .legend-line.critical {
+            border-top: 3px solid var(--accent);
+        }
+
+        /* === FLOWCHART CANVAS === */
+        .flowchart {
+            position: relative;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            padding: 40px 24px;
+            overflow-x: auto;
+        }
+
+        /* === BEAT SECTION === */
+        .beat-section {
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .beat-label {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-right: 2px solid var(--border-light);
+            padding: 8px;
+        }
+        .beat-label-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+        }
+        .beat-label-location {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .beat-label-strength {
+            font-size: 10px;
+            color: var(--accent);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+        .beat-content {
+            margin-left: 136px;
+            min-height: 80px;
+        }
+
+        /* === NODE ROW === */
+        .node-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 8px 0;
+            flex-wrap: nowrap;
+        }
+        .node-row.optional-row {
+            padding-left: 60px;
+            position: relative;
+        }
+        .node-row.optional-row::before {
+            content: '⤷ 可选';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* === NODE === */
+        .node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 110px;
+            max-width: 140px;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            text-align: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .node.critical {
+            border-width: 3px;
+            border-color: var(--accent);
+        }
+        .node-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+        .node-type {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* emotion colors */
+        .node.emo-tension-low { background: var(--emo-tension-low); }
+        .node.emo-tension-high { background: var(--emo-tension-high); }
+        .node.emo-tension-spike { background: var(--emo-tension-spike); border-width: 3px; }
+        .node.emo-relief { background: var(--emo-relief); }
+        .node.emo-excitement { background: var(--emo-excitement); }
+        .node.emo-calm { background: var(--emo-calm); }
+
+        /* === ARROW === */
+        .arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            font-size: 16px;
+            position: relative;
+        }
+        .arrow.critical { color: var(--accent); font-weight: 700; }
+        .arrow-label {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            background: var(--bg-card);
+            padding: 0 3px;
+        }
+
+        /* === BEAT DIVIDER === */
+        .beat-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .beat-divider-line {
+            flex: 1;
+            height: 0;
+            border-top: 1px dashed var(--border-light);
+        }
+        .beat-divider-arrow {
+            color: var(--accent);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* === FOOTER === */
+        .module-footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .score-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border: 2px solid var(--green);
+            color: var(--green);
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        /* === SCORE SUMMARY === */
+        .score-summary {
+            margin-top: 16px;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+        }
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .score-item {
+            text-align: center;
+        }
+        .score-item-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .score-item-value.pass { color: var(--green); }
+        .score-item-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+
+        @media print {
+            body { background: white; }
+            .module { padding: 20px; }
+            .flowchart { border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+<section class="module" data-module="bubble-chart" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[BUBBLE CHART]</div>
+        <h1>玩法流程气泡图 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>类型: {{type}}</span>
+            <span>节点: {{node_count}}（主{{critical_count}} + 分支{{optional_count}}）</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-title">图例</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--emo-tension-low)"></div>低张力</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--emo-tension-high)"></div>高张力</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--emo-tension-spike)"></div>张力爆发</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--emo-relief)"></div>释放</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--emo-excitement)"></div>兴奋</div>
+        <div class="legend-item" style="margin-left:12px;"><div class="legend-line critical"></div>关键路径</div>
+        <div class="legend-item"><div class="legend-line dashed"></div>可选路径</div>
+    </div>
+
+    <div class="flowchart">
+
+        <!-- REPEAT: one beat-section per beat from IR.FLOW.beats -->
+        <div class="beat-section">
+            <div class="beat-label">
+                <div class="beat-label-name">{{beat_name}}</div>
+                <div class="beat-label-location">{{beat_location}}</div>
+                <div class="beat-label-strength">强度 {{beat_strength}}/10</div>
+            </div>
+            <div class="beat-content">
+                <!-- Critical path row -->
+                <div class="node-row">
+                    <!-- REPEAT: one node + arrow per critical node in this beat -->
+                    <div class="node {{emo_class}} critical" id="{{node_id}}">
+                        <div class="node-label">{{node_label}}</div>
+                        <div class="node-type">{{node_type}}</div>
+                    </div>
+                    <div class="arrow critical">&rarr;</div>
+                </div>
+                <!-- Optional path row (if beat has optional nodes) -->
+                <div class="node-row optional-row">
+                    <!-- REPEAT: one node + arrow per optional node in this beat -->
+                    <div class="node {{emo_class}}" id="{{node_id}}">
+                        <div class="node-label">{{node_label}}</div>
+                        <div class="node-type">{{node_type}}</div>
+                    </div>
+                    <div class="arrow">&rarr;</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Beat divider between beats -->
+        <div class="beat-divider">
+            <div class="beat-divider-line"></div>
+            <div class="beat-divider-arrow">&darr;</div>
+            <div class="beat-divider-line"></div>
+        </div>
+
+    </div>
+
+    <!-- === SCORE SUMMARY === -->
+    <div class="score-summary">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">自动评分</span>
+            <span class="score-badge">{{total_score}} {{score_status}}</span>
+        </div>
+        <div class="score-grid">
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_structure}}</div>
+                <div class="score-item-label">结构完整性 (30%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_consistency}}</div>
+                <div class="score-item-label">一致性 (30%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_compliance}}</div>
+                <div class="score-item-label">规范符合度 (20%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_fidelity}}</div>
+                <div class="score-item-label">信息保真度 (20%)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · BubbleChart Skill v1.0</span>
+        <span>数据来源: IR.FLOW + IR.FEEL</span>
+    </div>
+
+</section>
+
+</body>
+</html>

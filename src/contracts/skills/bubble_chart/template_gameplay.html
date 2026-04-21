@@ -1,0 +1,403 @@
+<!--
+    MODULE: bubble_chart (gameplay_flow mode)
+    REQUIRED IR DIMENSIONS: IR.FLOW + IR.MECHANIC
+    MODE: gameplay_flow — 用于非 POI 类型（OpenWorldEvent / MainMission / SideQuest）
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Pure SVG flowchart, top-down layout
+      - Nodes colored by FUNCTION TYPE (not emotion):
+          state_neutral:   #F5F5F5 (中性状态)
+          event_trigger:   #F3E5F5 (事件触发)
+          condition_check: #E8F5E9 (条件判断/尝试)
+          player_action:   #FFF8E1 (玩家操作)
+          system_action:   #E3F2FD (系统响应/核心状态)
+          failure:         #E8F5E9 (失败状态)
+          forced_exit:     #FFEBEE (异常/强制中断)
+          success_exit:    #E8F5E9 (正常退出)
+      - Edge types:
+          critical:  solid thick (stroke-width:3) — 主路径
+          condition: solid normal + label — 条件分支
+          failure:   dotted — 失败路径
+          retry:     dotted + curved — 重试/循环回退
+          optional:  dotted — 可选路径（忽略、放弃）
+      - ALL branch edges MUST have condition labels (no empty branches)
+      - Score grid: 4-column
+      - Module badge: [GAMEPLAY FLOW]
+      - Footer: Level Design Agent · BubbleChart Skill v2.0 · 数据来源: IR.FLOW + IR.MECHANIC
+    CRITICAL: This template is for LOGIC flow, not spatial/emotion flow.
+              Node colors = function type. Edge labels = specific conditions.
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玩法逻辑流程图 — {{level_name}}</title>
+    <style>
+        :root {
+            --bg-primary: #F4F4F0;
+            --bg-secondary: #E8E8E4;
+            --bg-card: #FFFFFF;
+            --text-primary: #111111;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --accent: #FF4500;
+            --border: #111111;
+            --border-light: #CCCCCC;
+            --green: #228B22;
+            --blue: #4169E1;
+            /* 功能类型颜色 */
+            --fn-state-neutral: #F5F5F5;
+            --fn-event-trigger: #F3E5F5;
+            --fn-condition: #E8F5E9;
+            --fn-player-action: #FFF8E1;
+            --fn-system-action: #E3F2FD;
+            --fn-failure: #E8F5E9;
+            --fn-forced-exit: #FFEBEE;
+            --fn-success-exit: #E8F5E9;
+            /* 功能类型边框色 */
+            --fn-stroke-neutral: #999999;
+            --fn-stroke-trigger: #9C27B0;
+            --fn-stroke-condition: #4CAF50;
+            --fn-stroke-action: #FF9800;
+            --fn-stroke-system: #2196F3;
+            --fn-stroke-failure: #4CAF50;
+            --fn-stroke-forced: #F44336;
+            --fn-stroke-success: #4CAF50;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* === MODULE WRAPPER === */
+        .module {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 32px;
+        }
+
+        /* === HEADER === */
+        .module-header {
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+        .module-badge {
+            display: inline-block;
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: 2px;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .module-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+        .module-meta {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .module-meta span { display: flex; align-items: center; gap: 4px; }
+
+        /* === LEGEND === */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+        }
+        .legend-title {
+            width: 100%;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid;
+        }
+        .legend-line {
+            width: 24px;
+            height: 0;
+        }
+        .legend-line.critical {
+            border-top: 3px solid var(--border);
+        }
+        .legend-line.dotted {
+            border-top: 2px dotted var(--text-muted);
+        }
+
+        /* === SVG FLOWCHART CANVAS === */
+        .flowchart-svg-container {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            padding: 32px 24px;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+        .flowchart-svg-container svg {
+            display: block;
+        }
+
+        /* SVG node styling */
+        .flow-node rect {
+            rx: 4;
+            ry: 4;
+        }
+        .flow-node text {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            fill: var(--text-primary);
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+        .flow-node .node-type-label {
+            font-size: 9px;
+            font-weight: 400;
+            fill: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* SVG edge styling */
+        .flow-edge path {
+            fill: none;
+        }
+        .flow-edge.critical path {
+            stroke: var(--border);
+            stroke-width: 3;
+        }
+        .flow-edge.normal path {
+            stroke: var(--border);
+            stroke-width: 1.5;
+        }
+        .flow-edge.dotted path {
+            stroke: var(--text-muted);
+            stroke-width: 1.5;
+            stroke-dasharray: 6,4;
+        }
+        .flow-edge .edge-label {
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 11px;
+            fill: var(--text-muted);
+        }
+        /* Arrowhead */
+        .flow-edge marker path {
+            fill: var(--border);
+        }
+
+        /* === SCORE SUMMARY === */
+        .score-summary {
+            margin-top: 16px;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+        }
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .score-item { text-align: center; }
+        .score-item-value { font-size: 20px; font-weight: 700; }
+        .score-item-value.pass { color: var(--green); }
+        .score-item-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+        .score-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border: 2px solid var(--green);
+            color: var(--green);
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        /* === FOOTER === */
+        .module-footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        @media print {
+            body { background: white; }
+            .module { padding: 20px; }
+            .flowchart-svg-container { border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+<section class="module" data-module="bubble-chart" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[GAMEPLAY FLOW]</div>
+        <h1>玩法逻辑流程图 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>类型: {{type}}</span>
+            <span>节点: {{node_count}}（状态{{state_count}} + 条件{{condition_count}} + 动作{{action_count}}）</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <!-- Legend: function type colors + edge types -->
+    <div class="legend">
+        <div class="legend-title">图例 — 节点按功能类型着色</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-state-neutral); border-color:var(--fn-stroke-neutral);"></div>中性状态</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-event-trigger); border-color:var(--fn-stroke-trigger);"></div>事件触发</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-condition); border-color:var(--fn-stroke-condition);"></div>条件判断</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-player-action); border-color:var(--fn-stroke-action);"></div>玩家操作</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-system-action); border-color:var(--fn-stroke-system);"></div>系统响应</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--fn-forced-exit); border-color:var(--fn-stroke-forced);"></div>异常中断</div>
+        <div class="legend-item" style="margin-left:12px;"><div class="legend-line critical"></div>主路径</div>
+        <div class="legend-item"><div class="legend-line dotted"></div>失败/重试/可选</div>
+    </div>
+
+    <!--
+        SVG FLOWCHART — 纯 SVG 绘制，自上而下布局
+
+        生成规则：
+        1. 从 IR.FLOW.nodes 读取所有节点
+        2. 为每个节点分配功能类型（根据 node.type 映射）：
+             start/end        → state_neutral
+             event            → event_trigger
+             decision         → condition_check
+             action/stealth   → player_action
+             checkpoint/cutscene/combat → system_action
+             (failure nodes)  → failure
+             (forced exit)    → forced_exit
+        3. 从 IR.FLOW.edges 读取所有边
+        4. 主路径（critical_path 上的边）用粗实线
+        5. 失败/重试/可选路径用虚线
+        6. 所有分支边必须有条件标签（从 edge.condition 或 edge.label 读取）
+        7. 从 IR.MECHANIC 补充具体触发条件参数
+
+        布局算法：
+        - 主路径节点居中纵向排列
+        - 分支/失败节点在右侧偏移
+        - 重试回退用曲线连回上方节点
+
+        SVG 坐标从 IR 数据计算，不硬编码。
+        节点尺寸: width=140, height=44
+        纵向间距: 80px（主路径）
+        横向偏移: 200px（分支节点）
+    -->
+    <div class="flowchart-svg-container">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="{{svg_width}}" height="{{svg_height}}"
+             viewBox="0 0 {{svg_width}} {{svg_height}}">
+
+            <defs>
+                <!-- Arrowhead markers -->
+                <marker id="arrow-critical" viewBox="0 0 10 10" refX="10" refY="5"
+                        markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+                </marker>
+                <marker id="arrow-normal" viewBox="0 0 10 10" refX="10" refY="5"
+                        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+                </marker>
+                <marker id="arrow-dotted" viewBox="0 0 10 10" refX="10" refY="5"
+                        markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#666666"/>
+                </marker>
+            </defs>
+
+            <!-- REPEAT: edges first (rendered behind nodes) -->
+            <!-- Critical path edges -->
+            <g class="flow-edge critical">
+                <path d="M {{x1}} {{y1}} L {{x2}} {{y2}}" marker-end="url(#arrow-critical)"/>
+                <!-- Optional: edge label -->
+                <text class="edge-label" x="{{label_x}}" y="{{label_y}}">{{edge_label}}</text>
+            </g>
+
+            <!-- Failure/retry/optional edges -->
+            <g class="flow-edge dotted">
+                <path d="M {{x1}} {{y1}} C {{cx1}} {{cy1}}, {{cx2}} {{cy2}}, {{x2}} {{y2}}" marker-end="url(#arrow-dotted)"/>
+                <text class="edge-label" x="{{label_x}}" y="{{label_y}}">{{edge_label}}</text>
+            </g>
+
+            <!-- REPEAT: nodes -->
+            <g class="flow-node" transform="translate({{node_x}}, {{node_y}})">
+                <rect x="-70" y="-22" width="140" height="44"
+                      fill="{{fn_color}}" stroke="{{fn_stroke}}" stroke-width="{{stroke_width}}"/>
+                <text y="-4">{{node_label}}</text>
+                <text class="node-type-label" y="12">{{node_function_type}}</text>
+            </g>
+
+        </svg>
+    </div>
+
+    <!-- === SCORE SUMMARY === -->
+    <div class="score-summary">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">自动评分</span>
+            <span class="score-badge">{{total_score}} {{score_status}}</span>
+        </div>
+        <div class="score-grid">
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_structure}}</div>
+                <div class="score-item-label">结构完整性 (30%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_consistency}}</div>
+                <div class="score-item-label">一致性 (30%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_compliance}}</div>
+                <div class="score-item-label">规范符合度 (20%)</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-value pass">{{score_fidelity}}</div>
+                <div class="score-item-label">信息保真度 (20%)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · BubbleChart Skill v2.0</span>
+        <span>数据来源: IR.FLOW + IR.MECHANIC</span>
+    </div>
+
+</section>
+
+</body>
+</html>

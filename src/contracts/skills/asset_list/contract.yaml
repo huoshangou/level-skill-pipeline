@@ -1,0 +1,39 @@
+skill_name: "AssetList"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P0"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "ASSET.required_assets"
+    - path: "ASSET.reuse_candidates"
+    - path: "SPACE.regions"
+      description: "用于关联资产放置区域"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "asset-list"
+  structure:
+    - "按资产类型分组的需求表格（mesh/vfx/animation/sound）"
+    - "每行包含：ID、名称、类型、数量、优先级、放置区域、备注"
+    - "统计摘要：总数、must_have数、按类型分布"
+
+quality:
+  auto_checks:
+    - name: "asset_coverage"
+      rule: "输出资产集 == IR.ASSET.required_assets 资产集"
+      severity: "error"
+    - name: "region_reference_valid"
+      rule: "所有 region 引用都存在于 IR.SPACE.regions"
+      severity: "warning"
+    - name: "priority_present"
+      rule: "每个资产都有 priority 标记"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "资产需求表格，嵌入到 POI 文档中"

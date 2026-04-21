@@ -1,0 +1,46 @@
+skill_name: "AtmosphereRef"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "FEEL.emotional_beats"
+    - path: "FEEL.overall_tone"
+    - path: "FEEL.audio_intent"
+    - path: "SPACE.regions"
+    - path: "FLOW.nodes"
+      description: "节点信息用于场景描述"
+  external_data:
+    - path: "layout_enriched.json"
+      source: "editor.html 导出的 enriched layout JSON"
+      required: false
+      description: |
+        设计师用 editor.html 为每个区域标注的参考图。
+        结构: shapes[].images = [{ src: base64DataURI, caption: string }]
+        按 shape.label 与 IR.SPACE.regions[].label 匹配。
+        缺失时 {{ref_img_html}} 回退为 img-placeholder 占位符。
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "atmosphere-ref"
+  structure:
+    - "按区域/节点分行的提示词表格"
+    - "每行：序号、场景节点、画面描述、情绪关键词、构图建议、生图提示词(EN)"
+    - "无生图API时为纯表格，有API后提示词列替换为生成图片"
+
+quality:
+  auto_checks:
+    - name: "region_coverage"
+      rule: "所有 SPACE.regions 都有对应的氛围描述"
+      severity: "warning"
+    - name: "prompt_english"
+      rule: "生图提示词列为英文"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"

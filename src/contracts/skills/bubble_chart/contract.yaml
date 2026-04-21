@@ -1,0 +1,170 @@
+# ============================================================================
+# BubbleChart Skill Contract v2.0
+# ============================================================================
+# 双模式：POI 空间功能气泡图 / 玩法逻辑流程图
+# 根据 IR.type 自动切换模式
+#
+# [Claude Code 指令]
+# 执行此 Skill 时，先检查 IR.type 决定模式，再裁剪 IR 并组装上下文
+# ============================================================================
+
+skill_name: "BubbleChart"
+version: "2.0.0"
+owner_agent: "level_design_agent"
+priority: "P0"
+
+# ============================================================================
+# 模式选择（v2.0 新增）
+# ============================================================================
+mode_selection:
+  rule: "根据 IR.type 自动选择模式"
+  mapping:
+    POI: "spatial_bubble"          # 空间功能气泡图
+    MainMission: "gameplay_flow"   # 玩法逻辑流程图
+    SideQuest: "gameplay_flow"
+    OpenWorldEvent: "gameplay_flow"
+
+  spatial_bubble:
+    description: "POI 空间功能气泡图 — 区域分布、邻接关系、功能标注"
+    template: "contracts/skills/bubble_chart/template.html"
+    ir_focus: [SPACE, MECHANIC]
+    node_coloring: "by_region_function"
+    edge_meaning: "空间连通性、视线关系"
+
+  gameplay_flow:
+    description: "玩法逻辑流程图 — 状态推进、条件分支、失败/重试/循环"
+    template: "contracts/skills/bubble_chart/template_gameplay.html"
+    ir_focus: [FLOW, MECHANIC]
+    node_coloring: "by_node_function_type"
+    edge_meaning: "逻辑条件、状态转换、触发规则"
+
+# ============================================================================
+# 输入契约
+# ============================================================================
+input:
+  # --- 共用字段 ---
+  common_fields:
+    - path: "level_id"
+      description: "关卡标识，用于文件命名"
+    - path: "level_name"
+      description: "关卡名称，用于标题"
+    - path: "type"
+      description: "关卡类型，用于模式选择"
+
+  # --- spatial_bubble 模式专用 ---
+  spatial_bubble_fields:
+    - path: "SPACE.regions"
+      description: "区域定义，每个区域是一个气泡节点"
+    - path: "SPACE.critical_path"
+      description: "主路径区域序列"
+    - path: "SPACE.optional_paths"
+      description: "可选路径"
+    - path: "MECHANIC.mechanics"
+      description: "各区域承载的玩法功能"
+    - path: "FEEL.emotional_beats"
+      description: "区域情绪标注（辅助着色）"
+
+  # --- gameplay_flow 模式专用 ---
+  gameplay_flow_fields:
+    - path: "FLOW.nodes"
+      description: "所有逻辑节点（状态/动作/条件/事件）"
+    - path: "FLOW.edges"
+      description: "节点间的条件转换关系"
+    - path: "FLOW.critical_path"
+      description: "关键路径，用于主路径高亮"
+    - path: "MECHANIC.mechanics"
+      description: "触发条件的具体参数（如速度差、距离、时长）"
+
+  upstream_dependencies: []
+
+# ============================================================================
+# 输出契约
+# ============================================================================
+output:
+  output_type: "document"
+  format: "self_contained_html"
+  file_extension: ".html"
+  encoding: "UTF-8"
+
+  # --- gameplay_flow 模式的节点功能类型着色（v2.0 新增）---
+  gameplay_node_colors:
+    state_neutral:   { color: "#F5F5F5", stroke: "#999",   description: "中性状态（自由驾驶、回到自由驾驶）" }
+    event_trigger:   { color: "#F3E5F5", stroke: "#9C27B0", description: "事件触发（遭遇、发现）" }
+    condition_check: { color: "#E8F5E9", stroke: "#4CAF50", description: "条件判断 / 尝试节点（接近尝试、可接入状态）" }
+    player_action:   { color: "#FFF8E1", stroke: "#FF9800", description: "玩家主动操作（按键接入、主动离开）" }
+    system_action:   { color: "#E3F2FD", stroke: "#2196F3", description: "系统响应 / 核心状态（接入演出、搭载状态、结果结算）" }
+    failure:         { color: "#E8F5E9", stroke: "#4CAF50", description: "失败状态（接近失败、接入失败）" }
+    forced_exit:     { color: "#FFEBEE", stroke: "#F44336", description: "异常/强制中断（Actor失效、强制离开）" }
+    success_exit:    { color: "#E8F5E9", stroke: "#4CAF50", description: "正常退出（主动离开、快速离开）" }
+
+  # --- gameplay_flow 模式的边类型 ---
+  gameplay_edge_types:
+    critical:   { style: "solid_thick",  description: "主路径推进" }
+    condition:  { style: "solid_normal", label: "具体条件文字", description: "条件分支" }
+    failure:    { style: "dotted",       description: "失败路径" }
+    retry:      { style: "dotted",       description: "重试/循环回退" }
+    optional:   { style: "dotted",       description: "可选路径（忽略、放弃）" }
+
+# ============================================================================
+# 质量契约
+# ============================================================================
+quality:
+  auto_checks:
+    # --- 共用检查 ---
+    - name: "start_end_present"
+      rule: "必须包含起始和终止节点"
+      severity: "error"
+
+    - name: "critical_path_highlighted"
+      rule: "关键路径有视觉区分（粗线/实线）"
+      severity: "warning"
+
+    # --- gameplay_flow 专用检查 ---
+    - name: "condition_labels_present"
+      mode: "gameplay_flow"
+      rule: "所有分支边必须有条件标签（不允许空标签分支）"
+      severity: "error"
+      description: "逻辑图的核心价值在于条件明确"
+
+    - name: "failure_paths_complete"
+      mode: "gameplay_flow"
+      rule: "每个条件判断节点必须有成功和失败两条出边"
+      severity: "warning"
+
+    - name: "node_function_coloring"
+      mode: "gameplay_flow"
+      rule: "节点颜色必须按功能类型映射，不按情绪映射"
+      severity: "error"
+
+    # --- spatial_bubble 专用检查 ---
+    - name: "region_coverage"
+      mode: "spatial_bubble"
+      rule: "输出节点集 == 输入 SPACE.regions 区域集"
+      severity: "error"
+
+    - name: "node_count_warning"
+      rule: "节点数 <= 15"
+      severity: "warning"
+
+  scoring_weights:
+    structure_completeness: 0.3
+    consistency: 0.3
+    compliance: 0.2
+    fidelity: 0.2
+
+# ============================================================================
+# 变更日志
+# ============================================================================
+change_log:
+  - version: "2.0.0"
+    date: "2026-04-01"
+    changes:
+      - "双模式支持：POI → spatial_bubble，非POI → gameplay_flow"
+      - "gameplay_flow 节点按功能类型着色（state/action/condition/failure），不按情绪"
+      - "gameplay_flow 边标签必须标注具体逻辑条件"
+      - "新增 template_gameplay.html 模板"
+      - "新增 condition_labels_present / node_function_coloring 质量检查"
+  - version: "1.0.0"
+    date: "2026-03-30"
+    changes:
+      - "初始版本，基于原型定义契约"

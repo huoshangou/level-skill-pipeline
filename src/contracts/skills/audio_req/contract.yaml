@@ -1,0 +1,47 @@
+skill_name: "AudioReq"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "FEEL.emotional_beats"
+      description: "驱动 BGM 风格和情绪变化"
+    - path: "FEEL.overall_tone"
+    - path: "FEEL.audio_intent"
+      description: "音频设计意图（如有）"
+    - path: "SPACE.regions"
+      description: "每个区域一行环境音底噪"
+    - path: "MECHANIC.mechanics"
+      description: "SFX 触发节点来源"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "audio-req"
+  structure:
+    - "设计说明（整体音频基调）"
+    - "BGM 表（8列：区域/音乐风格/节奏BPM/情绪/触发方式/过渡/参考/优先级）"
+    - "SFX 表（6列：#/音效名称/触发节点/描述/空间化/优先级）"
+    - "环境音表（3列：区域/底噪描述/音量层级）"
+    - "优先级标签：.must / .nice"
+    - "类型标签：.bgm / .sfx / .amb"
+
+quality:
+  auto_checks:
+    - name: "region_ambience_coverage"
+      rule: "所有 SPACE.regions 都有对应的环境音行"
+      severity: "warning"
+    - name: "bgm_columns"
+      rule: "BGM 表固定 8 列"
+      severity: "error"
+    - name: "sfx_trigger_valid"
+      rule: "SFX 触发节点引用应能在 MECHANIC.mechanics 或 FLOW.nodes 中找到对应"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "音频需求表，嵌入到组装文档中"

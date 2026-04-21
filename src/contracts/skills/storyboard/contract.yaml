@@ -1,0 +1,45 @@
+skill_name: "Storyboard"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "FLOW.nodes"
+      description: "逻辑节点序列，每个关键节点对应 1-2 帧分镜"
+    - path: "FLOW.critical_path"
+      description: "关键路径节点优先分镜"
+    - path: "FEEL.emotional_beats"
+      description: "情绪标签用于镜头氛围描写"
+    - path: "FEEL.overall_tone"
+    - path: "SPACE.regions"
+      description: "场景定位，关联分镜发生的物理区域"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "storyboard"
+  structure:
+    - "API 提示（无生图 API 时显示纯表格模式说明）"
+    - "按 Beat 分组的分镜卡片网格（2列）"
+    - "每帧：帧号+节点、占位图、场景标题、描述、镜头指示、情绪标签、英文生图 prompt"
+    - "Beat 起始帧用 beat-start 加粗边框区分"
+
+quality:
+  auto_checks:
+    - name: "critical_path_covered"
+      rule: "FLOW.critical_path 中的所有节点至少有 1 帧分镜"
+      severity: "error"
+    - name: "prompt_english"
+      rule: "生图提示词列为英文"
+      severity: "warning"
+    - name: "beat_grouping"
+      rule: "分镜按 emotional_beats 分组，每个 beat 至少 1 帧"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "核心流程分镜，嵌入到组装文档中"

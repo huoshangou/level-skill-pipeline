@@ -1,0 +1,149 @@
+<!--
+    MODULE: tech_req
+    REQUIRED IR DIMENSIONS: IR.MECHANIC + IR.SYSTEM + IR.FLOW
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: System Dependencies, State Machine (callout + info-grid), Tech Constraints, Data Config
+      - System table columns: 系统, 用途, 状态, 关卡内触发点, 对接说明
+      - Info grid: 2-column cards (状态节点, 关键转场条件)
+      - Constraints table columns: #, 约束, 影响范围, 建议方案
+      - Data config table columns: 配置项, 数量, 说明
+      - Tags: .must, .nice, .existing, .new
+      - code-block: monospace pre-formatted code
+      - Module badge: [TECH REQUIREMENTS]
+      - Footer: Level Design Agent · TechReq Skill v1.0 · 数据来源: IR.MECHANIC + IR.SYSTEM + IR.FLOW
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>程序需求文档 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+        .section-title{font-size:14px;font-weight:600;margin:24px 0 8px;padding-left:10px;border-left:3px solid var(--accent);}
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin-bottom:16px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:10px 12px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .tag{display:inline-block;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.3px;border:1px solid;}
+        .tag.must{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.nice{border-color:var(--text-muted);color:var(--text-muted);}
+        .tag.existing{border-color:var(--green);color:var(--green);}
+        .tag.new{border-color:var(--blue);color:var(--blue);}
+        .callout{padding:14px 18px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid var(--blue);margin:12px 0;font-size:13px;color:var(--text-secondary);}
+        .callout strong{color:var(--text-primary);}
+        .info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;}
+        .info-card{background:var(--bg-card);border:2px solid var(--border);padding:16px;}
+        .info-card h4{font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;}
+        .info-card ul{list-style:none;padding:0;}
+        .info-card li{font-size:12px;color:var(--text-secondary);padding:3px 0;}
+        .info-card li::before{content:'→ ';color:var(--accent);}
+        .code-block{background:var(--bg-secondary);border:2px solid var(--border);padding:14px 18px;margin:8px 0;font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;line-height:1.6;overflow-x:auto;white-space:pre;}
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="tech-req" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[TECH REQUIREMENTS]</div>
+        <h1>程序需求文档 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>系统依赖: {{system_count}}</span>
+            <span>接口需求: {{api_status}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="section-title">系统依赖</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>系统</th><th>用途</th><th>状态</th><th>关卡内触发点</th><th>对接说明</th></tr>
+            </thead>
+            <tbody>
+                <!-- REPEAT: one row per system dependency from IR.SYSTEM -->
+                <tr>
+                    <td><strong>{{system_name}}</strong></td>
+                    <td>{{system_purpose}}</td>
+                    <td><span class="tag {{status_tag}}">{{system_status}}</span></td>
+                    <td>{{trigger_points}}</td>
+                    <td>{{integration_notes}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">关卡流程状态机</div>
+    <div class="callout">
+        <strong>状态机设计：</strong>{{state_machine_overview}}
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card">
+            <h4>状态节点</h4>
+            <ul>
+                <!-- REPEAT: one li per state from IR.FLOW -->
+                <li>{{state_name}} — {{state_description}}</li>
+            </ul>
+        </div>
+        <div class="info-card">
+            <h4>关键转场条件</h4>
+            <ul>
+                <!-- REPEAT: one li per transition from IR.FLOW -->
+                <li>{{from_state}} → {{to_state}}: {{transition_condition}}</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section-title">技术约束与注意事项</div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>#</th><th>约束</th><th>影响范围</th><th>建议方案</th></tr></thead>
+            <tbody>
+                <!-- REPEAT: one row per technical constraint -->
+                <tr>
+                    <td>{{constraint_index}}</td>
+                    <td><strong>{{constraint_name}}</strong> — {{constraint_desc}}</td>
+                    <td>{{impact_scope}}</td>
+                    <td>{{suggested_solution}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">数据配置需求</div>
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>配置项</th><th>数量</th><th>说明</th></tr></thead>
+            <tbody>
+                <!-- REPEAT: one row per data config item from IR.MECHANIC -->
+                <tr>
+                    <td>{{config_name}}</td>
+                    <td>{{config_count}}</td>
+                    <td>{{config_description}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · TechReq Skill v1.0</span>
+        <span>数据来源: IR.MECHANIC + IR.SYSTEM + IR.FLOW</span>
+    </div>
+
+</section>
+</body>
+</html>

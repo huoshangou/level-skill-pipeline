@@ -1,0 +1,114 @@
+<!--
+    MODULE: atmosphere_ref
+    REQUIRED IR DIMENSIONS: IR.FEEL + IR.SPACE + IR.FLOW
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: API Notice, Region Sections (one per region)
+      - Each region section: region-title, region-audio, prompt table
+      - Prompt table columns: #, 场景节点, 画面描述, 情绪关键词, 构图建议, 生图提示词(EN), 预览
+      - prompt-cell: monospace font, blue color, code-like style
+      - emo-tag: inline emotion keyword badges
+      - img-placeholder: 120px height dashed border placeholder
+      - Module badge: [ATMOSPHERE REFERENCE]
+      - Footer: Level Design Agent · AtmosphereRef Skill v1.0 · 数据来源: IR.FEEL + IR.SPACE + IR.FLOW
+    NOTE: artmuseum used max-width:1200px but per rules this MUST be 1100px
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>氛围参考提示词表 — {{level_name}}</title>
+    <style>
+        :root {
+            --bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;
+            --text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;
+            --accent:#FF4500;--border:#111111;--border-light:#CCCCCC;
+            --green:#228B22;--blue:#4169E1;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+
+        .api-notice{padding:16px 20px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid #FF8C00;margin-bottom:24px;font-size:13px;color:var(--text-secondary);}
+        .api-notice strong{color:#FF8C00;font-size:11px;letter-spacing:1px;}
+
+        .region-section{margin-bottom:28px;}
+        .region-title{font-size:14px;font-weight:600;margin-bottom:4px;padding-left:12px;border-left:3px solid var(--accent);}
+        .region-audio{font-size:11px;color:var(--text-muted);margin-bottom:8px;padding-left:15px;}
+
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:10px 12px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .prompt-cell{font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;color:var(--blue);line-height:1.5;background:rgba(65,105,225,.03);padding:8px;border:1px solid rgba(65,105,225,.15);}
+        .emo-tag{display:inline-block;padding:1px 6px;font-size:10px;font-weight:500;border:1px solid;margin:1px 2px;}
+        .img-placeholder{width:100%;height:120px;background:var(--bg-secondary);border:1px dashed var(--border-light);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:11px;font-style:italic;}
+        .img-ref{width:100%;max-height:120px;overflow:hidden;border-radius:3px;background:#1a1a1a;}
+        .img-ref img{width:100%;height:120px;max-height:120px;object-fit:cover;border-radius:3px;display:block;}
+        .ref-thumb img{max-width:160px;max-height:120px;object-fit:cover;border-radius:3px;display:block;}
+
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+
+<section class="module" data-module="atmosphere-ref" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[ATMOSPHERE REFERENCE]</div>
+        <h1>氛围参考提示词表 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>区域数: {{region_count}}</span>
+            <span>场景数: {{scene_count}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="api-notice">
+        <strong>[PROMPT TABLE MODE]</strong><br>
+        当前无生图 API 接入。表格中「生图提示词」列为结构化英文 prompt，待 API 可用后可直接调用生成氛围参考图。
+        右侧「预览」列将在接入 API 后替换为实际生成图片。
+    </div>
+
+    <!-- REPEAT: one region-section per region from IR.SPACE -->
+    <div class="region-section">
+        <div class="region-title">{{region_name}} ({{region_id}}) — {{beat_name}}</div>
+        <div class="region-audio">音频意图: {{audio_intent}} · {{audio_desc}}</div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th style="width:30px;">#</th><th style="width:100px;">场景节点</th><th style="width:160px;">画面描述</th><th style="width:100px;">情绪关键词</th><th style="width:100px;">构图建议</th><th>生图提示词 (EN)</th><th style="width:140px;">预览</th></tr>
+                </thead>
+                <tbody>
+                    <!-- REPEAT: one row per scene node in this region from IR.FEEL + IR.FLOW -->
+                    <tr>
+                        <td>{{scene_index}}</td>
+                        <td>{{scene_node_name}}<br><code style="font-size:9px;">{{node_id}}</code></td>
+                        <td>{{scene_description}}</td>
+                        <td><span class="emo-tag" style="border-color:{{emo_color_1}};color:{{emo_text_1}};">{{emo_keyword_1}}</span><span class="emo-tag" style="border-color:{{emo_color_2}};color:{{emo_text_2}};">{{emo_keyword_2}}</span></td>
+                        <td>{{composition_suggestion}}</td>
+                        <td><div class="prompt-cell">{{en_prompt}}</div></td>
+                        <td>{{ref_img_html}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · AtmosphereRef Skill v1.0</span>
+        <span>数据来源: IR.FEEL + IR.SPACE + IR.FLOW</span>
+    </div>
+
+</section>
+</body>
+</html>

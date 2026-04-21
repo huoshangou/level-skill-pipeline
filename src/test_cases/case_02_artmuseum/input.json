@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "name": "好莱坞艺术馆",
+    "type": "潜入",
+    "area": "Hollywood Artmuseum",
+    "owner": "待填写",
+    "summary": "三层艺术馆潜入，完成三处涂鸦并QTE逃脱",
+    "optional_paths": ["潜行通过办公区关闭监控，擦窗器前往二层"],
+    "main_node_count": 14,
+    "branch_node_count": 3
+  },
+  "beats": [
+    {
+      "index": 0,
+      "emotion": "探索铺垫",
+      "strength": 3,
+      "location": "1F",
+      "nodes": [
+        { "id": "b0n0",   "type": "触发器",        "label": "进入艺术馆",       "row": 0 },
+        { "id": "b0n1",   "type": "GoTo",           "label": "前往任务一点位",   "row": 0 },
+        { "id": "b0n2",   "type": "GameplayAction", "label": "任务一：涂鸦玩法", "row": 0 },
+        { "id": "b0n3",   "type": "GoTo",           "label": "前往二层（楼梯）", "row": 0 },
+        { "id": "b0opt0", "type": "GoTo",           "label": "潜行通过办公区",   "row": 1, "optional": true, "note": "危险区" },
+        { "id": "b0opt1", "type": "GameplayAction", "label": "关闭监控摄像头",   "row": 1, "optional": true },
+        { "id": "b0opt2", "type": "GoTo",           "label": "擦窗器前往二层",   "row": 1, "optional": true }
+      ]
+    },
+    {
+      "index": 1,
+      "emotion": "推进受阻",
+      "strength": 6,
+      "location": "2F",
+      "nodes": [
+        { "id": "b1n0", "type": "GoTo",           "label": "寻找任务二点位",     "row": 0 },
+        { "id": "b1n1", "type": "GameplayAction", "label": "任务二：保险箱玩法", "row": 0 },
+        { "id": "b1n2", "type": "GoTo",           "label": "前往三层",           "row": 0, "blocker": "强隔断" },
+        { "id": "b1n3", "type": "GoTo",           "label": "前往天台另辟路线",   "row": 0 }
+      ]
+    },
+    {
+      "index": 2,
+      "emotion": "高潮逃脱",
+      "strength": 9,
+      "location": "3F",
+      "nodes": [
+        { "id": "b2n0", "type": "GoTo",           "label": "通过窗户进入3F",   "row": 0 },
+        { "id": "b2n1", "type": "GameplayAction", "label": "使用烟雾装置",     "row": 0 },
+        { "id": "b2n2", "type": "GoTo",           "label": "前往任务三点位",   "row": 0 },
+        { "id": "b2n3", "type": "GameplayAction", "label": "任务三：涂鸦玩法", "row": 0 },
+        { "id": "b2n4", "type": "GameplayAction", "label": "QTE逃脱",         "row": 1 },
+        { "id": "b2n5", "type": "关卡完成",       "label": "逃出艺术馆",       "row": 1 }
+      ]
+    }
+  ],
+  "branches": [
+    { "from": "b0n2",   "to": "b0opt0", "style": "dashed" },
+    { "from": "b0opt2", "to": "b1n0",   "style": "dashed" }
+  ]
+}

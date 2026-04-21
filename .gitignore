@@ -1,0 +1,28 @@
+# Build output
+dist/
+
+# Node
+node_modules/
+package-lock.json
+
+# Pipeline runtime output (per-case generated artifacts)
+src/outputs/
+src/scoring/
+
+# Installer logs
+*.log
+levelagent_install_*.log
+level-skill-pipeline_install_*.log
+
+# Backups
+*.bak.*
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

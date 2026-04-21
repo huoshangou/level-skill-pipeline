@@ -1,0 +1,42 @@
+skill_name: "VfxReq"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "ASSET.required_assets"
+      description: "筛选 type 含 vfx/particle/effect 的资产"
+    - path: "MECHANIC.mechanics"
+      description: "特效触发条件来源"
+    - path: "FEEL.emotional_beats"
+      description: "特效的情绪支撑目的"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "vfx-req"
+  structure:
+    - "特效需求表（8列：#/特效名称/触发节点/区域/描述/技术要点/性能预算/优先级）"
+    - "性能注意事项表（3列：风险点/相关特效/建议方案）"
+    - "优先级标签：.must / .nice"
+    - "性能预算标签：.high / .medium / .low"
+
+quality:
+  auto_checks:
+    - name: "vfx_from_ir"
+      rule: "特效列表应覆盖 IR.ASSET.required_assets 中 type 含 vfx 的资产"
+      severity: "warning"
+    - name: "priority_present"
+      rule: "每个特效都有 must/nice 优先级标记"
+      severity: "warning"
+    - name: "performance_notes"
+      rule: "至少有 1 条性能注意事项"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "特效需求表，嵌入到组装文档中"

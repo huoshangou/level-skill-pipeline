@@ -1,0 +1,145 @@
+<!--
+    MODULE: asset_list
+    REQUIRED IR DIMENSIONS: IR.ASSET + IR.SPACE
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Summary Cards, Asset Tables (grouped by type), Reuse Candidates
+      - Summary row: 4-column grid (总资产数, MUST HAVE, NICE TO HAVE, 资产类型)
+      - Asset table columns: #, 资产 ID, 名称/描述, 数量, 放置区域, 优先级
+      - Reuse table columns: 来源关卡, 资产 ID, 备注
+      - Tags: .must, .nice, .mesh, .vfx, .anim
+      - Module badge: [ASSET LIST]
+      - Footer: Level Design Agent · AssetList Skill v1.0 · 数据来源: IR.ASSET + IR.SPACE
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美术资产需求表 — {{level_name}}</title>
+    <style>
+        :root {
+            --bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;
+            --text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;
+            --accent:#FF4500;--border:#111111;--border-light:#CCCCCC;
+            --green:#228B22;--blue:#4169E1;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+
+        /* summary cards */
+        .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+        .summary-card{background:var(--bg-card);border:2px solid var(--border);padding:16px;text-align:center;}
+        .summary-value{font-size:28px;font-weight:700;color:var(--accent);}
+        .summary-label{font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:.5px;}
+
+        /* table */
+        .table-section{margin-bottom:28px;}
+        .table-section-title{font-size:14px;font-weight:600;margin-bottom:8px;padding-left:12px;border-left:3px solid var(--accent);}
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);}
+        table{width:100%;border-collapse:collapse;font-size:13px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:10px 14px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:10px 14px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .tag{display:inline-block;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.5px;border:1px solid;}
+        .tag.must{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.nice{border-color:var(--text-muted);color:var(--text-muted);}
+        .tag.mesh{border-color:var(--blue);color:var(--blue);}
+        .tag.vfx{border-color:#9C27B0;color:#9C27B0;}
+        .tag.anim{border-color:var(--green);color:var(--green);}
+
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+
+<section class="module" data-module="asset-list" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[ASSET LIST]</div>
+        <h1>美术资产需求表 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>类型: {{type}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="summary-value">{{total_assets}}</div>
+            <div class="summary-label">总资产数</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{must_have_count}}</div>
+            <div class="summary-label">MUST HAVE</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{nice_to_have_count}}</div>
+            <div class="summary-label">NICE TO HAVE</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{asset_type_count}}</div>
+            <div class="summary-label">资产类型</div>
+        </div>
+    </div>
+
+    <!-- REPEAT: one table-section per asset category (Mesh, VFX, Anim, etc.) from IR.ASSET -->
+    <div class="table-section">
+        <div class="table-section-title">{{category_name}}（{{category_count}}项）</div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>#</th><th>资产 ID</th><th>名称 / 描述</th><th>数量</th><th>放置区域</th><th>优先级</th></tr>
+                </thead>
+                <tbody>
+                    <!-- REPEAT: one row per asset in this category from IR.ASSET -->
+                    <tr>
+                        <td>{{asset_index}}</td>
+                        <td><code>{{asset_id}}</code></td>
+                        <td>{{asset_name}}</td>
+                        <td>{{asset_quantity}}</td>
+                        <td>{{asset_region}}</td>
+                        <td><span class="tag {{priority_tag}}">{{priority}}</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 复用候选 -->
+    <div class="table-section">
+        <div class="table-section-title">可复用资产候选</div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>来源关卡</th><th>资产 ID</th><th>备注</th></tr>
+                </thead>
+                <tbody>
+                    <!-- REPEAT: one row per reuse candidate, or placeholder if none -->
+                    <tr>
+                        <td>{{reuse_source_level}}</td>
+                        <td>{{reuse_asset_id}}</td>
+                        <td>{{reuse_note}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · AssetList Skill v1.0</span>
+        <span>数据来源: IR.ASSET + IR.SPACE</span>
+    </div>
+
+</section>
+</body>
+</html>

@@ -1,0 +1,876 @@
+<!--
+    MODULE: spatial_layout
+    REQUIRED IR DIMENSIONS: IR.SPACE
+    EXTERNAL DATA: layout_data.json (LevelCraft 2D export)
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Legend, 2D/3D View Toggle, SVG Layout, Three.js 3D View, Region Data Table
+      - Three.js via CDN with graceful fallback
+      - Module badge: [SPATIAL LAYOUT]
+      - Footer: Level Design Agent · SpatialLayout Skill v1.0 · 数据来源: layout_data.json + IR.SPACE
+    FILL INSTRUCTIONS:
+      - {{level_name}}: IR.level_name
+      - {{level_id}}: IR.level_id
+      - {{floor_count}}: 楼层数（layers长度，不含屋顶层）
+      - {{room_count}}: 房间数（非楼梯 shapes 数量）
+      - {{door_count}}: 门总数（所有 strokeExclusions 总数）
+      - {{window_count}}: 窗总数（所有 strokeWindows 总数）
+      - {{environment}}: IR.SPACE.environment_type
+      - {{timestamp}}: 生成时间
+      - {{LAYOUT_JSON}}: layout_data.json 的完整 JSON 内容（嵌入到 script 标签中）
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空间布局 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;--door-color:#B85450;--window-color:#7B9EBE;--stairs-color:#8B7355;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+
+        .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-light);}
+        .legend-title{width:100%;font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+        .legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-secondary);}
+        .legend-swatch{width:14px;height:14px;border:1px solid var(--border-light);}
+
+        .view-toggle{display:flex;gap:4px;margin-bottom:16px;}
+        .view-toggle button{padding:8px 20px;font-size:12px;font-weight:600;letter-spacing:1px;border:2px solid var(--border);background:var(--bg-card);color:var(--text-secondary);cursor:pointer;transition:all .2s;}
+        .view-toggle button.active{background:var(--border);color:#fff;}
+        .view-toggle button:hover:not(.active){background:var(--bg-secondary);}
+
+        .view-container{position:relative;background:var(--bg-card);border:2px solid var(--border);margin-bottom:24px;overflow:hidden;}
+        #view-2d{padding:24px;overflow:auto;}
+        #view-3d{height:500px;display:none;}
+        #view-3d canvas{width:100%!important;height:100%!important;}
+        .view-3d-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px;flex-direction:column;gap:8px;}
+
+        .floor-label{font-size:10px;fill:var(--text-muted);font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+        .room-label{font-size:9px;fill:var(--text-primary);font-weight:500;text-anchor:middle;dominant-baseline:central;pointer-events:none;}
+        .room-rect{stroke-width:2;cursor:default;transition:opacity .15s;}
+        .room-rect:hover{opacity:.9;}
+        .door-line{stroke:var(--door-color);stroke-width:3;stroke-linecap:round;}
+        .window-line{stroke:var(--window-color);stroke-width:3;stroke-linecap:round;stroke-dasharray:4 3;}
+        .stairs-pattern{fill:var(--stairs-color);opacity:.3;}
+        .dim-text{font-size:7px;fill:var(--text-muted);text-anchor:middle;dominant-baseline:central;}
+
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin-top:20px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:8px 10px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:8px 10px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .tag{display:inline-block;padding:1px 6px;font-size:9px;font-weight:600;letter-spacing:.3px;border:1px solid;}
+        .tag.floor{border-color:var(--text-muted);color:var(--text-muted);}
+        .tag.stairs{border-color:var(--stairs-color);color:var(--stairs-color);background:rgba(139,115,85,.08);}
+        .color-dot{display:inline-block;width:10px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.15);vertical-align:middle;margin-right:4px;}
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        /* POI overlay */
+        .poi-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:100;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+        .poi-card{background:#fff;border-radius:12px;width:90%;max-width:800px;max-height:85%;display:flex;flex-direction:column;cursor:default;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative;overflow:hidden;}
+        .poi-card-header{padding:16px 20px 12px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+        .poi-card-header h3{font-size:15px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;}
+        .poi-card-header .poi-floor{font-size:11px;color:var(--text-muted);}
+        .poi-close{font-size:22px;color:var(--text-muted);cursor:pointer;line-height:1;padding:0 4px;}
+        .poi-close:hover{color:var(--accent);}
+        .poi-card-body{display:flex;flex:1;min-height:0;overflow:hidden;}
+        /* Gallery: thumbnails left, main image right */
+        .poi-thumbs{width:100px;flex-shrink:0;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--border-light);background:var(--bg-secondary);}
+        .poi-thumb{border:2px solid transparent;border-radius:4px;cursor:pointer;overflow:hidden;opacity:.6;transition:all .15s;}
+        .poi-thumb:hover{opacity:.9;}
+        .poi-thumb.active{border-color:var(--accent);opacity:1;}
+        .poi-thumb img{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;}
+        .poi-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+        .poi-main-img{flex:1;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto;background:#fafafa;max-height:420px;}
+        .poi-main-img img{max-width:100%;max-height:400px;object-fit:contain;border-radius:4px;}
+        .poi-main-caption{padding:8px 16px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border-light);flex-shrink:0;min-height:32px;}
+        .poi-counter{font-size:10px;color:var(--text-muted);padding:0 16px 8px;text-align:right;flex-shrink:0;}
+        /* Single image (no thumbnails) */
+        .poi-single{flex:1;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;background:#fafafa;max-height:480px;}
+        .poi-single img{max-width:100%;max-height:460px;object-fit:contain;border-radius:4px;}
+        /* Empty state */
+        .poi-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:12px;padding:40px;text-align:center;}
+        .poi-empty-inner{border:2px dashed var(--border-light);border-radius:8px;padding:24px 32px;}
+        /* Hint */
+        .poi-hint{position:absolute;bottom:12px;right:12px;font-size:10px;color:var(--text-muted);background:rgba(255,255,255,.85);padding:4px 10px;border-radius:4px;pointer-events:none;z-index:10;}
+        @media print{body{background:white;}.module{padding:20px;}#view-3d{display:none!important;}#view-2d{display:block!important;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="spatial-layout" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[SPATIAL LAYOUT]</div>
+        <h1>空间布局 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>楼层: {{floor_count}}</span>
+            <span>房间: {{room_count}}</span>
+            <span>门: {{door_count}}</span>
+            <span>窗: {{window_count}}</span>
+            <span>环境: {{environment}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <!-- LEGEND: 自动从 layout JSON 的 layers + doorColorConfigs + windowColorConfigs 生成 -->
+    <div class="legend" id="legend">
+        <div class="legend-title">图例</div>
+        <!-- JS 自动填充 -->
+    </div>
+
+    <div class="view-toggle">
+        <button class="active" onclick="switchView('2d')">2D 平面</button>
+        <button onclick="switchView('3d')">3D 预览</button>
+    </div>
+
+    <div class="view-container">
+        <div id="view-2d">
+            <svg id="svg-2d" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div id="view-3d">
+            <div class="view-3d-fallback" id="view-3d-fallback" style="display:none;">
+                <span>3D 预览需要网络连接加载 Three.js</span>
+                <span style="font-size:11px;">请确认可访问 cdn.jsdelivr.net</span>
+            </div>
+            <div class="poi-hint" id="poi-hint" style="display:none;">点击圆点查看区域参考图</div>
+        </div>
+    </div>
+
+    <!-- REGION TABLE: 从 layout JSON 的 shapes 生成 -->
+    <div class="table-wrapper">
+        <table id="region-table">
+            <thead>
+                <tr>
+                    <th>区域</th>
+                    <th>楼层</th>
+                    <th>面积</th>
+                    <th>颜色</th>
+                    <th>门</th>
+                    <th>窗</th>
+                    <th>类型</th>
+                </tr>
+            </thead>
+            <tbody id="region-tbody">
+                <!-- JS 自动填充 -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · SpatialLayout Skill v1.0</span>
+        <span>数据来源: layout_data.json + IR.SPACE</span>
+    </div>
+</section>
+
+<!-- Layout Data (filled by pipeline) -->
+<script id="layout-data" type="application/json">
+{{LAYOUT_JSON}}
+</script>
+
+<!-- Region Assets: { "区域label": [{ "src": "base64 or url", "caption": "说明" }, ...] } -->
+<!-- If no assets provided, this will be an empty object {} -->
+<script id="assets-data" type="application/json">
+{{ASSETS_JSON}}
+</script>
+
+<script>
+// ============================================================
+// 1. DATA LOADING
+// ============================================================
+const layoutData = JSON.parse(document.getElementById('layout-data').textContent);
+const shapes = layoutData.shapes || [];
+const layers = layoutData.layers || [];
+const entities = layoutData.entities || [];
+const layerMap = {};
+layers.forEach(l => layerMap[l.id] = l);
+
+// Region reference assets — legacy format keyed by label
+const assetsData = JSON.parse(document.getElementById('assets-data').textContent || '{}');
+
+// Build shapesMap by label for enriched JSON lookup (s.images takes priority)
+const shapesMap = {};
+shapes.forEach(s => { if (s.label) shapesMap[s.label] = s; });
+
+// Physical unit conversion (from enriched _scale or fallback)
+const _scaleInfo = layoutData._scale || {};
+const _cmPerGrid = _scaleInfo.cmPerGrid || _scaleInfo.cmPerUnit || 100;
+const _gridSize  = _scaleInfo.gridSize || layoutData.gridSize || 20;
+function pxToCm(px) { return (px / _gridSize) * _cmPerGrid; }
+function formatPhysical(px) {
+  const cm = pxToCm(px);
+  if (cm >= 100) { const m = cm / 100; return (m % 1 === 0 ? m : m.toFixed(1)) + 'm'; }
+  return (cm % 1 === 0 ? cm : cm.toFixed(0)) + 'cm';
+}
+function formatArea(wpx, hpx) {
+  const wm = pxToCm(wpx) / 100, hm = pxToCm(hpx) / 100;
+  return (wm * hm).toFixed(1) + 'm\u00B2';
+}
+
+// ============================================================
+// 2. LEGEND
+// ============================================================
+(function buildLegend() {
+    const legend = document.getElementById('legend');
+    layers.forEach(l => {
+        if (l.name === '屋顶' || !l.showWalls && l.locked) return;
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = '<div class="legend-swatch" style="background:' + l.color + ';opacity:0.6;"></div>' + l.name;
+        legend.appendChild(item);
+    });
+    // Door
+    const doorItem = document.createElement('div');
+    doorItem.className = 'legend-item';
+    doorItem.innerHTML = '<div style="width:18px;height:0;border-top:3px solid var(--door-color);"></div>门';
+    legend.appendChild(doorItem);
+    // Window
+    const winItem = document.createElement('div');
+    winItem.className = 'legend-item';
+    winItem.innerHTML = '<div style="width:18px;height:0;border-top:3px dashed var(--window-color);"></div>窗';
+    legend.appendChild(winItem);
+    // Stairs
+    const stItem = document.createElement('div');
+    stItem.className = 'legend-item';
+    stItem.innerHTML = '<div class="legend-swatch" style="background:var(--stairs-color);opacity:0.4;"></div>楼梯';
+    legend.appendChild(stItem);
+})();
+
+// ============================================================
+// 3. 2D SVG RENDERING
+// ============================================================
+(function render2D() {
+    const svg = document.getElementById('svg-2d');
+    const PADDING = 40;
+    const FLOOR_GAP = 60;
+
+    // Group shapes by layer
+    const floorShapes = {};
+    const visibleLayers = layers.filter(l => !l.locked || l.showWalls !== false);
+    const floorLayers = layers.filter(l => !(l.name === '屋顶' && !l.showWalls));
+
+    shapes.forEach(s => {
+        if (!floorShapes[s.layerId]) floorShapes[s.layerId] = [];
+        floorShapes[s.layerId].push(s);
+    });
+
+    // Calculate layout bounds per floor
+    let totalWidth = 0, totalHeight = 0;
+    const floorBounds = {};
+    floorLayers.forEach(layer => {
+        const ss = floorShapes[layer.id] || [];
+        if (ss.length === 0) return;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        ss.forEach(s => {
+            minX = Math.min(minX, s.x);
+            minY = Math.min(minY, s.y);
+            maxX = Math.max(maxX, s.x + (s.width || 0));
+            maxY = Math.max(maxY, s.y + (s.height || 0));
+        });
+        floorBounds[layer.id] = { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+        totalWidth = Math.max(totalWidth, maxX - minX);
+    });
+
+    // Vertical stacking
+    const SCALE = 1;
+    let yOffset = PADDING;
+    const floorOffsets = {};
+
+    floorLayers.forEach(layer => {
+        const b = floorBounds[layer.id];
+        if (!b) return;
+        floorOffsets[layer.id] = { x: PADDING - b.minX, y: yOffset - b.minY };
+        yOffset += b.h + FLOOR_GAP;
+    });
+
+    totalHeight = yOffset - FLOOR_GAP + PADDING;
+    const svgW = totalWidth + PADDING * 2;
+    const svgH = totalHeight;
+    svg.setAttribute('width', svgW);
+    svg.setAttribute('height', svgH);
+    svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+
+    // Render each floor
+    floorLayers.forEach(layer => {
+        const ss = floorShapes[layer.id] || [];
+        const offset = floorOffsets[layer.id];
+        if (!offset || ss.length === 0) return;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('data-floor', layer.id);
+
+        // Floor label
+        const floorLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        floorLabel.setAttribute('x', PADDING);
+        floorLabel.setAttribute('y', offset.y + (floorBounds[layer.id]?.minY || 0) - 8);
+        floorLabel.setAttribute('class', 'floor-label');
+        floorLabel.textContent = '▸ ' + layer.name;
+        g.appendChild(floorLabel);
+
+        // Floor separator line
+        const sepLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        sepLine.setAttribute('x1', 0);
+        sepLine.setAttribute('y1', offset.y + (floorBounds[layer.id]?.minY || 0) - 4);
+        sepLine.setAttribute('x2', svgW);
+        sepLine.setAttribute('y2', offset.y + (floorBounds[layer.id]?.minY || 0) - 4);
+        sepLine.setAttribute('stroke', '#ccc');
+        sepLine.setAttribute('stroke-width', '1');
+        sepLine.setAttribute('stroke-dasharray', '4 4');
+        g.appendChild(sepLine);
+
+        // Shapes
+        ss.forEach(s => {
+            const sx = s.x + offset.x;
+            const sy = s.y + offset.y;
+
+            // Room rectangle
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', sx);
+            rect.setAttribute('y', sy);
+            rect.setAttribute('width', s.width);
+            rect.setAttribute('height', s.height);
+            rect.setAttribute('fill', s.color);
+            rect.setAttribute('fill-opacity', s.opacity || 0.6);
+            rect.setAttribute('stroke', s.strokeColor || 'rgba(61,57,41,0.4)');
+            rect.setAttribute('stroke-width', s.strokeWidth || 2);
+            rect.setAttribute('class', 'room-rect');
+            if (s.rotation) {
+                const cx = sx + s.width / 2, cy = sy + s.height / 2;
+                rect.setAttribute('transform', 'rotate(' + s.rotation + ' ' + cx + ' ' + cy + ')');
+            }
+            g.appendChild(rect);
+
+            // Stairs pattern
+            if (s.isStairs) {
+                const stepCount = 6;
+                for (let i = 0; i < stepCount; i++) {
+                    const stepRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    stepRect.setAttribute('x', sx + 2);
+                    stepRect.setAttribute('y', sy + (s.height / stepCount) * i);
+                    stepRect.setAttribute('width', s.width - 4);
+                    stepRect.setAttribute('height', s.height / stepCount - 1);
+                    stepRect.setAttribute('class', 'stairs-pattern');
+                    g.appendChild(stepRect);
+                }
+            }
+
+            // Room label
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', sx + s.width / 2);
+            label.setAttribute('y', sy + s.height / 2);
+            label.setAttribute('class', 'room-label');
+            label.textContent = s.label || '';
+            g.appendChild(label);
+
+            // Dimension annotations
+            const dimW = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            dimW.setAttribute('x', sx + s.width / 2);
+            dimW.setAttribute('y', sy + s.height + 10);
+            dimW.setAttribute('class', 'dim-text');
+            dimW.textContent = formatPhysical(s.width);
+            g.appendChild(dimW);
+
+            const dimH = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            dimH.setAttribute('x', sx - 8);
+            dimH.setAttribute('y', sy + s.height / 2);
+            dimH.setAttribute('class', 'dim-text');
+            dimH.setAttribute('transform', 'rotate(-90 ' + (sx - 8) + ' ' + (sy + s.height / 2) + ')');
+            dimH.textContent = formatPhysical(s.height);
+            g.appendChild(dimH);
+
+            // Doors (strokeExclusions)
+            (s.strokeExclusions || []).forEach(door => {
+                const dp = getDoorWindowPosition(s, door, offset);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', dp.x1);
+                line.setAttribute('y1', dp.y1);
+                line.setAttribute('x2', dp.x2);
+                line.setAttribute('y2', dp.y2);
+                line.setAttribute('class', 'door-line');
+                line.setAttribute('stroke', door.color || 'var(--door-color)');
+                g.appendChild(line);
+            });
+
+            // Windows (strokeWindows)
+            (s.strokeWindows || []).forEach(win => {
+                const wp = getDoorWindowPosition(s, win, offset);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', wp.x1);
+                line.setAttribute('y1', wp.y1);
+                line.setAttribute('x2', wp.x2);
+                line.setAttribute('y2', wp.y2);
+                line.setAttribute('class', 'window-line');
+                line.setAttribute('stroke', win.color || 'var(--window-color)');
+                g.appendChild(line);
+            });
+        });
+
+        // Entities
+        entities.filter(e => e.layerId === layer.id).forEach(ent => {
+            const ex = ent.position.x + offset.x;
+            const ey = ent.position.y + offset.y;
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', ex);
+            circle.setAttribute('cy', ey);
+            circle.setAttribute('r', 5);
+            circle.setAttribute('fill', ent.type === 'player_start' ? 'var(--accent)' : 'var(--green)');
+            circle.setAttribute('stroke', '#fff');
+            circle.setAttribute('stroke-width', 1.5);
+            g.appendChild(circle);
+
+            const elabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            elabel.setAttribute('x', ex);
+            elabel.setAttribute('y', ey - 8);
+            elabel.setAttribute('class', 'dim-text');
+            elabel.setAttribute('text-anchor', 'middle');
+            elabel.textContent = ent.type === 'player_start' ? '起点' : ent.type;
+            g.appendChild(elabel);
+        });
+
+        svg.appendChild(g);
+    });
+})();
+
+// Door/window position helper
+function getDoorWindowPosition(shape, dw, offset) {
+    const cx = dw.x + offset.x;
+    const cy = dw.y + offset.y;
+    const w = dw.width || 40;
+    const rot = (dw.rotation || 0) * Math.PI / 180;
+    const dx = Math.cos(rot) * w / 2;
+    const dy = Math.sin(rot) * w / 2;
+    return { x1: cx - dx, y1: cy - dy, x2: cx + dx, y2: cy + dy };
+}
+
+// ============================================================
+// 4. REGION TABLE
+// ============================================================
+(function buildTable() {
+    const tbody = document.getElementById('region-tbody');
+    shapes.forEach(s => {
+        const layer = layerMap[s.layerId];
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + (s.label || s.id.slice(0, 8)) + '</td>' +
+            '<td><span class="tag floor">' + (layer ? layer.name : '?') + '</span></td>' +
+            '<td>' + formatArea(s.width, s.height) + '</td>' +
+            '<td><span class="color-dot" style="background:' + s.color + '"></span>' + s.color + '</td>' +
+            '<td>' + (s.strokeExclusions || []).length + '</td>' +
+            '<td>' + (s.strokeWindows || []).length + '</td>' +
+            '<td>' + (s.isStairs ? '<span class="tag stairs">楼梯</span>' : '房间') + '</td>';
+        tbody.appendChild(tr);
+    });
+})();
+
+// ============================================================
+// 5. VIEW TOGGLE
+// ============================================================
+let threeLoaded = false;
+let threeScene = null;
+
+function switchView(mode) {
+    const btns = document.querySelectorAll('.view-toggle button');
+    btns.forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    document.getElementById('view-2d').style.display = mode === '2d' ? 'block' : 'none';
+    document.getElementById('view-3d').style.display = mode === '3d' ? 'block' : 'none';
+
+    if (mode === '3d' && !threeLoaded) {
+        loadThreeJS();
+    }
+}
+
+// ============================================================
+// 6. THREE.JS 3D RENDERING (lazy loaded)
+// ============================================================
+function loadThreeJS() {
+    const container = document.getElementById('view-3d');
+    const fallback = document.getElementById('view-3d-fallback');
+
+    // Three.js r160+ requires ES modules. Use importmap + dynamic import.
+    const importMap = document.createElement('script');
+    importMap.type = 'importmap';
+    importMap.textContent = JSON.stringify({
+        imports: {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    });
+    document.head.appendChild(importMap);
+
+    const loader = document.createElement('script');
+    loader.type = 'module';
+    loader.textContent = `
+        try {
+            const THREE = await import('three');
+            window._THREE = THREE;
+            window._threeReady = true;
+            window.dispatchEvent(new Event('three-ready'));
+        } catch(e) {
+            document.getElementById('view-3d-fallback').style.display = 'flex';
+            console.error('Three.js load failed:', e);
+        }
+    `;
+    document.head.appendChild(loader);
+
+    // Wait for Three.js to load
+    if (window._threeReady) {
+        initThreeScene(container);
+    } else {
+        window.addEventListener('three-ready', () => initThreeScene(container));
+        // Timeout fallback
+        setTimeout(() => {
+            if (!window._threeReady) fallback.style.display = 'flex';
+        }, 10000);
+    }
+}
+
+function makeTextSprite(T, text, bgColor) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+
+    // Background pill
+    ctx.fillStyle = bgColor || '#666';
+    ctx.globalAlpha = 0.85;
+    const r = 8;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, 252, 60, r);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Border
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, 252, 60, r);
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(text, 128, 32);
+
+    const texture = new T.CanvasTexture(canvas);
+    texture.minFilter = T.LinearFilter;
+    const mat = new T.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    return new T.Sprite(mat);
+}
+
+function initThreeScene(container) {
+    threeLoaded = true;
+    const T = window._THREE;
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    const scene = new T.Scene();
+    scene.background = new T.Color(0xF4F4F0);
+
+    const camera = new T.PerspectiveCamera(50, width / height, 0.1, 10000);
+
+    const renderer = new T.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new T.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const dirLight = new T.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(200, 300, 200);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    const WALL_HEIGHT = 30;
+    const poiSprites = [];
+
+    let allMinX = Infinity, allMinY = Infinity, allMaxX = -Infinity, allMaxY = -Infinity;
+    shapes.forEach(s => {
+        allMinX = Math.min(allMinX, s.x);
+        allMinY = Math.min(allMinY, s.y);
+        allMaxX = Math.max(allMaxX, s.x + (s.width || 0));
+        allMaxY = Math.max(allMaxY, s.y + (s.height || 0));
+    });
+    const centerX = (allMinX + allMaxX) / 2;
+    const centerY = (allMinY + allMaxY) / 2;
+
+    shapes.forEach(s => {
+        const layer = layerMap[s.layerId];
+        const floorY = layer ? layer.height : 0;
+        const sx = (s.x - centerX);
+        const sz = (s.y - centerY);
+        const w = s.width;
+        const h = s.height;
+        const wallH = s.wallHeight || WALL_HEIGHT;
+
+        // Floor plane
+        const floorGeom = new T.PlaneGeometry(w, h);
+        const floorMat = new T.MeshStandardMaterial({
+            color: new T.Color(s.color),
+            transparent: true, opacity: s.opacity || 0.6,
+            side: T.DoubleSide, roughness: 0.8
+        });
+        const floor = new T.Mesh(floorGeom, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(sx + w / 2, floorY, sz + h / 2);
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        if (s.isStairs) {
+            const rampGeom = new T.BoxGeometry(w * 0.8, wallH, h * 0.8);
+            const rampMat = new T.MeshStandardMaterial({
+                color: new T.Color(s.color), transparent: true, opacity: 0.4, roughness: 0.6
+            });
+            const ramp = new T.Mesh(rampGeom, rampMat);
+            ramp.position.set(sx + w / 2, floorY + wallH / 2, sz + h / 2);
+            scene.add(ramp);
+            // Stairs label (clickable)
+            if (s.label) {
+                const stairSprite = makeTextSprite(T, s.label, '#8B7355');
+                stairSprite.position.set(sx + w / 2, floorY + wallH + 5, sz + h / 2);
+                stairSprite.scale.set(Math.max(w, 60) * 0.6, Math.max(w, 60) * 0.15, 1);
+                stairSprite.userData = { label: s.label, layerName: layer ? layer.name : '', color: s.color };
+                scene.add(stairSprite);
+                poiSprites.push(stairSprite);
+            }
+            return;
+        }
+
+        // Walls
+        const wallMat = new T.MeshStandardMaterial({
+            color: new T.Color(s.color).multiplyScalar(0.7),
+            transparent: true, opacity: 0.85, side: T.DoubleSide, roughness: 0.7
+        });
+
+        const walls = [
+            { x1: sx, z1: sz, x2: sx + w, z2: sz, normal: 'z' },
+            { x1: sx + w, z1: sz, x2: sx + w, z2: sz + h, normal: 'x' },
+            { x1: sx, z1: sz + h, x2: sx + w, z2: sz + h, normal: 'z' },
+            { x1: sx, z1: sz, x2: sx, z2: sz + h, normal: 'x' }
+        ];
+
+        walls.forEach(wall => {
+            const wallLen = Math.sqrt(Math.pow(wall.x2 - wall.x1, 2) + Math.pow(wall.z2 - wall.z1, 2));
+            const wallGeom = new T.PlaneGeometry(wallLen, wallH);
+            const wallMesh = new T.Mesh(wallGeom, wallMat.clone());
+            wallMesh.position.set((wall.x1 + wall.x2) / 2, floorY + wallH / 2, (wall.z1 + wall.z2) / 2);
+            if (wall.normal === 'x') wallMesh.rotation.y = Math.PI / 2;
+            wallMesh.castShadow = true;
+            scene.add(wallMesh);
+        });
+
+        // Room label sprite (clickable)
+        if (s.label) {
+            const sprite = makeTextSprite(T, s.label, s.color);
+            sprite.position.set(sx + w / 2, floorY + wallH + 5, sz + h / 2);
+            sprite.scale.set(Math.max(w, 60) * 0.6, Math.max(w, 60) * 0.15, 1);
+            sprite.userData = { label: s.label, layerName: layer ? layer.name : '', color: s.color };
+            scene.add(sprite);
+            poiSprites.push(sprite);
+        }
+    });
+
+    const gridHelper = new T.GridHelper(800, 40, 0xcccccc, 0xe0e0e0);
+    gridHelper.position.y = -1;
+    scene.add(gridHelper);
+
+    // Show hint
+    if (poiSprites.length > 0) {
+        document.getElementById('poi-hint').style.display = 'block';
+    }
+
+    const raycaster = new T.Raycaster();
+    const mouse = new T.Vector2();
+    const maxDim = Math.max(allMaxX - allMinX, allMaxY - allMinY);
+
+    // Orbit controls
+    let isDown = false, startX = 0, startY = 0, dragDist = 0;
+    let theta = Math.PI / 4, phi = Math.PI / 4, radius = maxDim * 1.2;
+    const target = new T.Vector3(0, 20, 0);
+
+    function updateCamera() {
+        camera.position.x = target.x + radius * Math.sin(phi) * Math.cos(theta);
+        camera.position.y = target.y + radius * Math.cos(phi);
+        camera.position.z = target.z + radius * Math.sin(phi) * Math.sin(theta);
+        camera.lookAt(target);
+    }
+    updateCamera();
+
+    container.addEventListener('mousedown', e => {
+        if (e.button === 0) { isDown = true; startX = e.clientX; startY = e.clientY; dragDist = 0; }
+    });
+    container.addEventListener('mousemove', e => {
+        if (!isDown) return;
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        dragDist += Math.abs(dx) + Math.abs(dy);
+        theta += dx * 0.005;
+        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + dy * 0.005));
+        startX = e.clientX; startY = e.clientY;
+        updateCamera();
+    });
+    container.addEventListener('mouseup', e => {
+        if (e.button === 0) {
+            if (dragDist < 5) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hits = raycaster.intersectObjects(poiSprites);
+                if (hits.length > 0) {
+                    showPOIOverlay(hits[0].object.userData);
+                }
+            }
+            isDown = false;
+        }
+    });
+    container.addEventListener('mouseleave', () => isDown = false);
+    container.addEventListener('wheel', e => {
+        radius = Math.max(100, Math.min(2000, radius + e.deltaY * 0.5));
+        updateCamera(); e.preventDefault();
+    }, { passive: false });
+
+    // Hover cursor
+    container.addEventListener('mousemove', e => {
+        if (isDown) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(poiSprites);
+        renderer.domElement.style.cursor = hits.length > 0 ? 'pointer' : 'grab';
+    });
+
+    // Right-click pan
+    let isPanning = false, panStartX = 0, panStartY = 0;
+    container.addEventListener('contextmenu', e => e.preventDefault());
+    container.addEventListener('mousedown', e => {
+        if (e.button === 2) { isPanning = true; panStartX = e.clientX; panStartY = e.clientY; }
+    });
+    container.addEventListener('mousemove', e => {
+        if (!isPanning) return;
+        target.x -= (e.clientX - panStartX) * 0.5;
+        target.y += (e.clientY - panStartY) * 0.5;
+        panStartX = e.clientX; panStartY = e.clientY;
+        updateCamera();
+    });
+    container.addEventListener('mouseup', e => { if (e.button === 2) isPanning = false; });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+}
+
+// ============================================================
+// 7. POI OVERLAY (click dot → show reference images)
+// ============================================================
+function showPOIOverlay(data) {
+    const existing = document.querySelector('.poi-overlay');
+    if (existing) existing.remove();
+
+    // Prefer s.images from enriched JSON, fallback to legacy assetsData
+    const rawImgs = (shapesMap[data.label]?.images?.length)
+        ? shapesMap[data.label].images
+        : (assetsData[data.label] || []);
+    const images = rawImgs.map(img =>
+        typeof img === 'string' ? { src: img, caption: '' } : img
+    );
+
+    const overlay = document.createElement('div');
+    overlay.className = 'poi-overlay';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+    const card = document.createElement('div');
+    card.className = 'poi-card';
+    card.onclick = e => e.stopPropagation();
+
+    // Header
+    card.innerHTML = '<div class="poi-card-header">'
+        + '<div><h3><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + data.color + '"></span>' + data.label + '</h3>'
+        + '<div class="poi-floor">' + data.layerName + '</div></div>'
+        + '<span class="poi-close">&times;</span></div>';
+    card.querySelector('.poi-close').onclick = () => overlay.remove();
+
+    const body = document.createElement('div');
+    body.className = 'poi-card-body';
+
+    if (images.length === 0) {
+        body.innerHTML = '<div class="poi-empty"><div class="poi-empty-inner">[待提供]<br>请设计师提供此区域的参考图 / 白盒截图</div></div>';
+    } else if (images.length === 1) {
+        body.innerHTML = '<div class="poi-single"><img src="' + images[0].src + '"></div>';
+        if (images[0].caption) {
+            const cap = document.createElement('div');
+            cap.className = 'poi-main-caption';
+            cap.textContent = images[0].caption;
+            body.appendChild(cap);
+        }
+    } else {
+        // Multi-image gallery
+        let currentIdx = 0;
+
+        const thumbsDiv = document.createElement('div');
+        thumbsDiv.className = 'poi-thumbs';
+
+        const mainDiv = document.createElement('div');
+        mainDiv.className = 'poi-main';
+        const mainImg = document.createElement('div');
+        mainImg.className = 'poi-main-img';
+        const mainCaption = document.createElement('div');
+        mainCaption.className = 'poi-main-caption';
+        const counter = document.createElement('div');
+        counter.className = 'poi-counter';
+
+        function showImage(idx) {
+            currentIdx = idx;
+            mainImg.innerHTML = '<img src="' + images[idx].src + '">';
+            mainCaption.textContent = images[idx].caption || '';
+            counter.textContent = (idx + 1) + ' / ' + images.length;
+            thumbsDiv.querySelectorAll('.poi-thumb').forEach((t, i) => {
+                t.classList.toggle('active', i === idx);
+            });
+        }
+
+        images.forEach((img, i) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'poi-thumb' + (i === 0 ? ' active' : '');
+            thumb.innerHTML = '<img src="' + img.src + '">';
+            thumb.onclick = () => showImage(i);
+            thumbsDiv.appendChild(thumb);
+        });
+
+        mainDiv.appendChild(mainImg);
+        mainDiv.appendChild(mainCaption);
+        mainDiv.appendChild(counter);
+        body.appendChild(thumbsDiv);
+        body.appendChild(mainDiv);
+
+        showImage(0);
+    }
+
+    card.appendChild(body);
+    overlay.appendChild(card);
+    document.getElementById('view-3d').appendChild(overlay);
+}
+</script>
+</body>
+</html>

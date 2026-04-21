@@ -1,0 +1,180 @@
+{
+  "level_id": "gameplay_truck_dock_01",
+  "level_name": "动态货运卡车 Actor 玩法",
+  "type": "OpenWorldEvent",
+  "version": "2.0.0",
+  "last_modified": "2026-04-01T15:00:00Z",
+  "last_modified_by": "input_processor_v2",
+
+  "SPACE": {
+    "regions": [
+      { "id": "r_road_main", "name": "主干道/高速路段", "function": "卡车Actor出现区域+自由驾驶区域", "connections": ["r_road_approach"], "spatial_notes": "特定路段才会刷新卡车Actor，高架路、工业区干道、城郊连接道路等适合货运卡车出现的路段" },
+      { "id": "r_road_approach", "name": "接近区域", "function": "玩家追近卡车的动态区域", "connections": ["r_road_main", "r_dock_zone"], "spatial_notes": "卡车尾部后方，玩家需要在此区域保持跟车。靠近时显示UI标记和交互UI" },
+      { "id": "r_dock_zone", "name": "接入区域", "function": "有效接入窗口", "connections": ["r_road_approach", "r_onboard"], "spatial_notes": "卡车尾部扇区，距离和速度差满足条件时的有效交互区域" },
+      { "id": "r_onboard", "name": "搭载平台", "function": "玩家作为固定移动平台上的乘客", "connections": ["r_dock_zone", "r_exit_point"], "spatial_notes": "玩家处于固定移动平台状态，镜头切为远距离卡车视角，可转动镜头观察周围，不能自由移动。卡车沿路线持续移动，可能经过禁区或特殊路段" },
+      { "id": "r_exit_point", "name": "离开点", "function": "黑屏切换后的刷新位置", "connections": ["r_onboard", "r_road_main"], "spatial_notes": "卡车移动中→黑屏切换，玩家刷新到卡车当前所在道路旁；卡车停下→直接刷新到卡车旁边" }
+    ],
+    "critical_path": ["r_road_main", "r_road_approach", "r_dock_zone", "r_onboard", "r_exit_point", "r_road_main"],
+    "environment_type": "室外"
+  },
+
+  "FLOW": {
+    "nodes": [
+      { "id": "f_free_drive", "name": "自由驾驶", "type": "start", "description": "玩家正常驾驶载具，在车流中行驶", "region": "r_road_main" },
+      { "id": "f_encounter", "name": "发现卡车Actor", "type": "event", "description": "玩家在车流中识别到外观特殊的货运卡车（设计具有可供性），靠近后显示UI标记和交互UI", "region": "r_road_main" },
+      { "id": "f_approach", "name": "接近卡车", "type": "action", "description": "玩家主动加速追近卡车尾部，尝试进入有效接入窗口", "region": "r_road_approach" },
+      { "id": "f_approach_fail", "name": "接近失败", "type": "event", "description": "玩家未能满足跟车条件（距离/速度差/朝向），可重新尝试或放弃", "region": "r_road_approach" },
+      { "id": "f_ready", "name": "可接入状态", "type": "checkpoint", "description": "满足后方扇区、距离、速度差、朝向条件，系统显示交互提示", "region": "r_dock_zone" },
+      { "id": "f_dock", "name": "按键接入", "type": "action", "description": "玩家按下交互键，触发接入", "region": "r_dock_zone" },
+      { "id": "f_dock_fail", "name": "接入失败", "type": "event", "description": "条件变化导致接入失败，给予反馈，可重试", "region": "r_dock_zone" },
+      { "id": "f_cutscene_in", "name": "接入演出", "type": "cutscene", "description": "短演出：玩家车辆冲入卡车，镜头切为远距离卡车第三人称视角", "region": "r_onboard" },
+      { "id": "f_onboard", "name": "搭载中", "type": "action", "description": "玩家处于固定移动平台上，可转动镜头四处观察（查看是否有警察等），可随时按键选择离开。卡车持续沿路线移动，玩家获取奖励（改装零件/货币/经验值）", "region": "r_onboard" },
+      { "id": "f_exit", "name": "离开卡车", "type": "action", "description": "玩家按键离开，或卡车进入非目标状态（卡死等）强制弹出。黑屏切换：移动中刷到当前道路旁，停下则刷到卡车旁", "region": "r_exit_point" },
+      { "id": "f_cutscene_out", "name": "离开演出", "type": "cutscene", "description": "黑屏切换，玩家和车辆刷新到道路旁，恢复驾驶控制", "region": "r_exit_point" },
+      { "id": "f_return", "name": "回到自由驾驶", "type": "end", "description": "玩家恢复自由驾驶状态", "region": "r_road_main" }
+    ],
+    "edges": [
+      { "from": "f_free_drive", "to": "f_encounter", "type": "normal", "label": "在特定路段发现特殊卡车" },
+      { "from": "f_encounter", "to": "f_approach", "type": "normal", "label": "决定接近" },
+      { "from": "f_encounter", "to": "f_return", "type": "optional", "label": "忽略" },
+      { "from": "f_approach", "to": "f_ready", "type": "normal", "label": "满足条件", "condition": "后方扇区+距离+速度差+朝向" },
+      { "from": "f_approach", "to": "f_approach_fail", "type": "fail", "label": "条件不满足" },
+      { "from": "f_approach_fail", "to": "f_approach", "type": "loop", "label": "重新尝试" },
+      { "from": "f_approach_fail", "to": "f_return", "type": "optional", "label": "放弃" },
+      { "from": "f_ready", "to": "f_dock", "type": "normal", "label": "按下交互键" },
+      { "from": "f_dock", "to": "f_cutscene_in", "type": "normal", "label": "接入成功" },
+      { "from": "f_dock", "to": "f_dock_fail", "type": "fail", "label": "条件变化导致失败" },
+      { "from": "f_dock_fail", "to": "f_approach", "type": "loop", "label": "重试" },
+      { "from": "f_cutscene_in", "to": "f_onboard", "type": "normal", "label": "演出完成" },
+      { "from": "f_onboard", "to": "f_exit", "type": "normal", "label": "玩家按键离开", "condition": "玩家主动选择" },
+      { "from": "f_onboard", "to": "f_exit", "type": "fail", "label": "强制弹出", "condition": "卡车卡死/非目标状态" },
+      { "from": "f_exit", "to": "f_cutscene_out", "type": "normal", "label": "黑屏切换" },
+      { "from": "f_cutscene_out", "to": "f_return", "type": "normal", "label": "恢复控制" }
+    ],
+    "critical_path": ["f_free_drive", "f_encounter", "f_approach", "f_ready", "f_dock", "f_cutscene_in", "f_onboard", "f_exit", "f_cutscene_out", "f_return"]
+  },
+
+  "FEEL": {
+    "emotional_beats": [
+      { "node": "f_free_drive", "emotion": "calm", "intensity": 0.2, "notes": "自由驾驶，放松状态" },
+      { "node": "f_encounter", "emotion": "wonder", "intensity": 0.4, "notes": "在车流中发现特殊卡车，好奇+辨认" },
+      { "node": "f_approach", "emotion": "tension_low", "intensity": 0.5, "notes": "追近过程，需要控制距离和速度" },
+      { "node": "f_approach_fail", "emotion": "tension_low", "intensity": 0.3, "notes": "失败但可重试，不挫败" },
+      { "node": "f_ready", "emotion": "tension_high", "intensity": 0.6, "notes": "进入有效窗口，准备接入" },
+      { "node": "f_dock", "emotion": "tension_spike", "intensity": 0.7, "notes": "按键瞬间，能否成功的紧张感" },
+      { "node": "f_dock_fail", "emotion": "tension_low", "intensity": 0.4, "notes": "失败反馈" },
+      { "node": "f_cutscene_in", "emotion": "excitement", "intensity": 0.8, "notes": "冲入卡车的电影化高光时刻" },
+      { "node": "f_onboard", "emotion": "relief", "intensity": 0.5, "notes": "成功搭载，节奏放缓，观察周围局势。追逐场景下有'终于安全了'的释放感" },
+      { "node": "f_exit", "emotion": "tension_low", "intensity": 0.3, "notes": "选择离开时机" },
+      { "node": "f_cutscene_out", "emotion": "calm", "intensity": 0.3, "notes": "黑屏切换，过渡" },
+      { "node": "f_return", "emotion": "calm", "intensity": 0.2, "notes": "回归自由驾驶，携带奖励" }
+    ],
+    "overall_tone": "车流中的机会性交互体验。基础循环：发现→追近→冲入→获取奖励→离开，轻快流畅。高光时刻：追逐中躲藏（警察丢失目标）或突破禁区进入限制区域（合金装备纸箱式体验）",
+    "visual_references": [],
+    "audio_intent": []
+  },
+
+  "MECHANIC": {
+    "mechanics": [
+      {
+        "id": "mech_dock",
+        "name": "上下文接入",
+        "rules": "玩家接近卡车尾部 → 靠近后显示UI标记和交互UI → 进入有效窗口后按交互键 → 播放接入演出。条件：后方扇区+距离+速度差阈值+朝向误差。卡车外观设计具有可供性，让玩家能在车流中辨认出可交互卡车",
+        "parameters": { "dock_distance_min": "待定", "dock_distance_max": "待定", "speed_diff_threshold": "待定", "heading_tolerance": "待定" }
+      },
+      {
+        "id": "mech_onboard",
+        "name": "搭载平台",
+        "rules": "玩家进入固定移动平台状态，不能自由移动。镜头切为远距离卡车第三人称视角，可转动镜头观察周围（如查看是否有警察）。可随时按键选择离开。卡车沿路线持续移动",
+        "parameters": { "camera_mode": "远距离第三人称卡车跟随", "player_freedom": "固定平台，仅可转动镜头+按键离开", "can_free_move": false }
+      },
+      {
+        "id": "mech_exit",
+        "name": "离开机制",
+        "rules": "两种触发方式：(1)玩家主动按键离开；(2)卡车进入非目标状态（卡死等）强制弹出。退出方式统一为黑屏切换：移动中→玩家和车辆刷到当前卡车所在道路旁；卡车停下→直接刷到卡车旁边"
+      },
+      {
+        "id": "mech_reward",
+        "name": "奖励获取",
+        "rules": "玩家成功搭载即获取奖励。奖励类型可能为：改装零件/游戏内货币/经验值（具体待数值系统确认）",
+        "parameters": { "reward_type": "待定（改装零件/货币/经验值）", "reward_amount": "待定" }
+      },
+      {
+        "id": "mech_chase_hide",
+        "name": "追逐躲藏（高光用途）",
+        "rules": "当玩家处于被通缉/追逐状态时，搭上卡车后警察丢失目标（具体逻辑待大世界通缉系统确认）。另外，卡车可能经过限制进入的区域（如检查站），为玩家提供'纸箱式'突入渠道",
+        "parameters": { "chase_interaction": "警察丢失目标（暂定）", "restricted_area_access": true }
+      }
+    ],
+    "ai_behaviors": [
+      {
+        "npc_type": "货运卡车Actor",
+        "behavior": "沿预设路线以稳定速度行驶，遵循道路规范（前方遇到故障/路障会停下）。属于动态车流中的特殊可交互对象，外观具有可供性。",
+        "parameters": { "speed": "中速稳定", "route_type": "特定路段预设路线", "obeys_traffic": true, "stops_for_obstacles": true }
+      }
+    ],
+    "difficulty_parameters": {
+      "dock_difficulty": "中等（上下文交互降低操作门槛）",
+      "timing_difficulty": "低（无时间限制，玩家自由选择离开时机）"
+    }
+  },
+
+  "ASSET": {
+    "required_assets": [
+      { "id": "asset_cargo_truck", "type": "mesh", "count": 1, "notes": "特殊货运卡车模型，外观具有可供性——高于普通车流的厢体结构，视觉上传达'这是可交互的'", "priority": "must_have" },
+      { "id": "asset_dock_vfx", "type": "vfx", "count": 1, "notes": "接入演出特效（冲入卡车瞬间）", "priority": "must_have" },
+      { "id": "asset_dock_anim", "type": "animation", "count": 1, "notes": "车辆冲入卡车的接入动画", "priority": "must_have" },
+      { "id": "asset_ui_interact", "type": "ui", "count": 1, "notes": "交互UI：靠近时的标记提示 + 有效窗口内的接入按键提示 + 搭载中的离开按键提示", "priority": "must_have" },
+      { "id": "asset_exit_transition", "type": "vfx", "count": 1, "notes": "黑屏切换过渡效果", "priority": "must_have" }
+    ],
+    "reuse_candidates": []
+  },
+
+  "SYSTEM": {
+    "dependencies": [
+      { "system_name": "动态车流系统", "usage": "卡车Actor在车流中的生成、调度和路线管理。卡车遵循道路规范，遇障碍停下" },
+      { "system_name": "载具控制系统", "usage": "玩家车辆控制权切换、接入后锁定操作、离开后恢复控制" },
+      { "system_name": "镜头系统", "usage": "接入后切换为远距离卡车第三人称视角，支持玩家转动观察" },
+      { "system_name": "通缉/追逐系统", "version": "待确认", "usage": "搭载后警察丢失目标的联动逻辑（具体取决于大世界通缉系统设计）" },
+      { "system_name": "奖励投放系统", "version": "待确认", "usage": "搭载成功后的奖励发放（改装零件/货币/经验值）" }
+    ],
+    "interfaces": [
+      { "name": "Actor生命周期", "type": "callback", "description": "卡车的生成/失效/冷却管理。特定路段刷新，玩家等级解锁，以玩家为中心，同时最多1辆" },
+      { "name": "接入判定", "type": "check", "description": "距离+扇区+速度差+朝向的实时检测" },
+      { "name": "卡车状态监测", "type": "check", "description": "监测卡车是否进入非目标状态（卡死/异常），触发强制弹出" }
+    ],
+    "constraints": [
+      "多端可用（手柄/键鼠/触屏），接入操作不能依赖高精度输入",
+      "接入演出时需锁定输入，防止状态冲突",
+      "离开统一使用黑屏切换，不做实时物理弹出",
+      "搭载期间玩家不能自由移动，仅可转动镜头和按键离开",
+      "卡车Actor以玩家为中心刷新，特定路段才出现，同时最多1辆",
+      "多人场景下不刷新卡车Actor",
+      "原型阶段追逐联动以警察丢失目标为主，最终逻辑待通缉系统确认"
+    ]
+  },
+
+  "uncertainty_flags": [
+    { "field": "SPACE.regions[*]", "note": "开放世界动态事件，空间区域为概念性状态划分而非实际地图区域" },
+    { "field": "MECHANIC.mechanics[0].parameters", "note": "接入条件的具体数值（距离/速度差/角度）需原型调参确定" },
+    { "field": "MECHANIC.mechanics[3].parameters", "note": "奖励类型和数量待数值系统确认，当前为可能性参考（改装零件/货币/经验值）" },
+    { "field": "MECHANIC.mechanics[4].parameters.chase_interaction", "note": "追逐联动逻辑待大世界通缉系统最终确认，暂定为警察丢失目标" },
+    { "field": "ASSET.required_assets", "note": "资产列表为概念级，具体规格需美术确认" },
+    { "field": "FEEL.emotional_beats[*].intensity", "note": "情绪强度为设计推断，需原型测试后校准" },
+    { "field": "SYSTEM.dependencies[3]", "note": "通缉/追逐系统的接口和联动逻辑待该系统设计完成后对齐" }
+  ],
+
+  "source_refs": [
+    {
+      "type": "document",
+      "path": "test_cases/case_01_truck/input.txt",
+      "summary": "动态货运卡车Actor玩法设计文档v0.1"
+    },
+    {
+      "type": "dialogue",
+      "summary": "v2.0对话式IR填充：确认了无A/B/C分档结算、固定移动平台搭载体验、黑屏切换离开方式、奖励获取机制（待数值确认）、高光用途（追逐躲藏+禁区突入）、卡车生成规则（特定路段/等级解锁/最多1辆）、多人不刷卡车"
+    }
+  ],
+
+  "downstream_refs": []
+}

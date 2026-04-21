@@ -1,0 +1,52 @@
+skill_name: "TechReq"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "MECHANIC.mechanics"
+      description: "玩法机制驱动系统依赖和数据配置"
+    - path: "SYSTEM.dependencies"
+      description: "系统依赖表数据源"
+    - path: "SYSTEM.interfaces"
+      description: "对接说明数据源"
+      confidence: "needs_confirm"
+      confirm_hint: "接口规格需确认具体参数和调用方式"
+    - path: "SYSTEM.constraints"
+      description: "技术约束表数据源"
+      confidence: "needs_confirm"
+      confirm_hint: "技术约束的具体限制值和影响范围需确认"
+    - path: "FLOW.nodes"
+      description: "状态机节点来源"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "tech-req"
+  structure:
+    - "系统依赖表（5列：系统/用途/状态/关卡内触发点/对接说明）"
+    - "状态机说明（info-grid 2列卡片：状态节点 + 关键转场条件）"
+    - "技术约束表（4列：#/约束/影响范围/建议方案）"
+    - "数据配置表（3列：配置项/数量/说明）"
+    - "状态标签：.must / .nice / .existing / .new"
+    - "code-block 用于伪代码/配置示例"
+
+quality:
+  auto_checks:
+    - name: "dependencies_from_ir"
+      rule: "系统依赖表应覆盖 IR.SYSTEM.dependencies 中的所有系统"
+      severity: "error"
+    - name: "constraints_from_ir"
+      rule: "技术约束表应覆盖 IR.SYSTEM.constraints 中的所有约束"
+      severity: "warning"
+    - name: "state_machine_nodes"
+      rule: "状态机节点数应与 FLOW.nodes 中的状态类型节点一致"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "程序需求文档，嵌入到组装文档中"

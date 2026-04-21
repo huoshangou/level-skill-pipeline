@@ -1,0 +1,68 @@
+skill_name: "LevelOverview"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P0"
+
+input:
+  ir_fields_required:
+    # --- 基础信息 ---
+    - path: "level_id"
+    - path: "level_name"
+    - path: "type"
+    # --- SPACE ---
+    - path: "SPACE.regions"
+    - path: "SPACE.total_area_estimate"
+    - path: "SPACE.environment_type"
+    # --- FLOW ---
+    - path: "FLOW.nodes"
+      description: "节点总数用于数据摘要"
+      confidence: "needs_confirm"
+      confirm_hint: "3C 行为约束（各流程节点的输入锁定/角色切换规则）"
+    - path: "FLOW.critical_path"
+    # --- FEEL ---
+    - path: "FEEL.overall_tone"
+    - path: "FEEL.emotional_beats"
+    # --- MECHANIC ---
+    - path: "MECHANIC.mechanics"
+      confidence: "needs_confirm"
+      confirm_hint: "复用性判断（A/B类机制是否均可复用）"
+    # --- ASSET ---
+    - path: "ASSET.required_assets"
+      description: "资产总数用于数据摘要"
+    # --- SYSTEM ---
+    - path: "SYSTEM.dependencies"
+      confidence: "needs_confirm"
+      confirm_hint: "合作需求清单需按标准模板结构填写（11组22项）"
+    - path: "SYSTEM.constraints"
+    # --- 元数据 ---
+    - path: "uncertainty_flags"
+      description: "不确定项清单，独立展示"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "level-overview"
+  structure:
+    - "关卡属性表（2列网格：标签180px + 值）"
+    - "核心体验卡片（3列：幻想/挑战/感受）"
+    - "设计说明（overall_tone 展开描述）"
+    - "流程简述（关键路径摘要）"
+    - "关卡数据摘要表（维度 + 数据）"
+    - "不确定项表（字段 + 说明）"
+
+quality:
+  auto_checks:
+    - name: "all_dimensions_present"
+      rule: "6 个 IR 维度（SPACE/FLOW/FEEL/MECHANIC/ASSET/SYSTEM）均在摘要中体现"
+      severity: "error"
+    - name: "uncertainty_listed"
+      rule: "IR.uncertainty_flags 中的所有项均出现在不确定项表中"
+      severity: "warning"
+    - name: "data_summary_accurate"
+      rule: "数据摘要中的统计数字（区域数/节点数/资产数）与 IR 原始数据一致"
+      severity: "error"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "关卡概览卡片，作为组装文档首模块"

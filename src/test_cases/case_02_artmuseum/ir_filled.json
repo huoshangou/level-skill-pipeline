@@ -1,0 +1,155 @@
+{
+  "level_id": "poi_hollywood_artmuseum_01",
+  "level_name": "好莱坞艺术馆",
+  "type": "POI",
+  "version": "1.0.0",
+  "last_modified": "2026-03-31T17:30:00Z",
+  "last_modified_by": "input_processor",
+
+  "SPACE": {
+    "regions": [
+      { "id": "r_1f", "name": "一层大厅", "function": "入口+任务一区域", "connections": ["r_2f", "r_1f_office"], "spatial_notes": "艺术馆一层，包含涂鸦任务点位和通往二层的楼梯", "elevation": "1F" },
+      { "id": "r_1f_office", "name": "一层办公区", "function": "可选潜行路线（危险区）", "connections": ["r_1f", "r_ext_window"], "spatial_notes": "内部办公区域，有监控摄像头，属于危险区", "elevation": "1F" },
+      { "id": "r_ext_window", "name": "外墙擦窗器", "function": "可选路线通往二层", "connections": ["r_1f_office", "r_2f"], "spatial_notes": "建筑外部，通过擦窗器从一层到达二层", "elevation": "外部" },
+      { "id": "r_2f", "name": "二层展厅", "function": "任务二区域+通往三层", "connections": ["r_1f", "r_ext_window", "r_rooftop"], "spatial_notes": "二层展厅，有保险箱玩法，通往三层存在强隔断", "elevation": "2F" },
+      { "id": "r_rooftop", "name": "天台/屋顶", "function": "另辟路线绕过强隔断", "connections": ["r_2f", "r_3f"], "spatial_notes": "屋顶区域，用于绕过二层到三层的强隔断", "elevation": "屋顶" },
+      { "id": "r_3f", "name": "三层", "function": "任务三区域+逃脱", "connections": ["r_rooftop"], "spatial_notes": "三层，需从窗户进入，包含最终涂鸦任务和逃脱QTE", "elevation": "3F" }
+    ],
+    "critical_path": ["r_1f", "r_2f", "r_rooftop", "r_3f"],
+    "optional_paths": ["r_1f", "r_1f_office", "r_ext_window", "r_2f"],
+    "total_area_estimate": "中型三层建筑",
+    "environment_type": "室内"
+  },
+
+  "FLOW": {
+    "nodes": [
+      { "id": "b0n0", "name": "进入艺术馆", "type": "start", "description": "触发器：玩家进入艺术馆", "region": "r_1f" },
+      { "id": "b0n1", "name": "前往任务一点位", "type": "action", "description": "导航至一层涂鸦任务位置", "region": "r_1f" },
+      { "id": "b0n2", "name": "任务一：涂鸦玩法", "type": "action", "description": "在一层执行涂鸦玩法", "region": "r_1f" },
+      { "id": "b0n3", "name": "前往二层（楼梯）", "type": "action", "description": "通过楼梯前往二层", "region": "r_1f" },
+      { "id": "b0opt0", "name": "潜行通过办公区", "type": "stealth", "description": "可选路线：潜行通过一层办公区（危险区）", "region": "r_1f_office" },
+      { "id": "b0opt1", "name": "关闭监控摄像头", "type": "action", "description": "可选：在办公区关闭监控摄像头", "region": "r_1f_office" },
+      { "id": "b0opt2", "name": "擦窗器前往二层", "type": "action", "description": "可选路线：通过擦窗器从外部到达二层", "region": "r_ext_window" },
+      { "id": "b1n0", "name": "寻找任务二点位", "type": "action", "description": "在二层寻找保险箱位置", "region": "r_2f" },
+      { "id": "b1n1", "name": "任务二：保险箱玩法", "type": "puzzle", "description": "在二层执行保险箱玩法", "region": "r_2f" },
+      { "id": "b1n2", "name": "前往三层", "type": "action", "description": "尝试直接前往三层（存在强隔断）", "region": "r_2f" },
+      { "id": "b1n3", "name": "前往天台另辟路线", "type": "action", "description": "因强隔断被阻，转向天台寻找替代路线", "region": "r_rooftop" },
+      { "id": "b2n0", "name": "通过窗户进入3F", "type": "action", "description": "从天台通过窗户进入三层", "region": "r_3f" },
+      { "id": "b2n1", "name": "使用烟雾装置", "type": "action", "description": "使用烟雾装置制造掩护", "region": "r_3f" },
+      { "id": "b2n2", "name": "前往任务三点位", "type": "action", "description": "在烟雾掩护下前往三层涂鸦位置", "region": "r_3f" },
+      { "id": "b2n3", "name": "任务三：涂鸦玩法", "type": "action", "description": "执行最后一次涂鸦玩法", "region": "r_3f" },
+      { "id": "b2n4", "name": "QTE逃脱", "type": "action", "description": "QTE逃脱序列", "region": "r_3f" },
+      { "id": "b2n5", "name": "逃出艺术馆", "type": "end", "description": "成功逃出艺术馆，关卡完成", "region": "r_3f" }
+    ],
+    "edges": [
+      { "from": "b0n0", "to": "b0n1", "type": "normal", "label": "进入后" },
+      { "from": "b0n1", "to": "b0n2", "type": "normal", "label": "到达点位" },
+      { "from": "b0n2", "to": "b0n3", "type": "normal", "label": "完成涂鸦" },
+      { "from": "b0n3", "to": "b1n0", "type": "normal", "label": "到达二层" },
+      { "from": "b0n2", "to": "b0opt0", "type": "optional", "label": "可选：潜行" },
+      { "from": "b0opt0", "to": "b0opt1", "type": "normal", "label": "进入办公区" },
+      { "from": "b0opt1", "to": "b0opt2", "type": "normal", "label": "关闭监控后" },
+      { "from": "b0opt2", "to": "b1n0", "type": "normal", "label": "到达二层" },
+      { "from": "b1n0", "to": "b1n1", "type": "normal", "label": "找到保险箱" },
+      { "from": "b1n1", "to": "b1n2", "type": "normal", "label": "完成保险箱" },
+      { "from": "b1n2", "to": "b1n3", "type": "normal", "label": "强隔断阻挡", "condition": "直接通道被封锁" },
+      { "from": "b1n3", "to": "b2n0", "type": "normal", "label": "天台绕行" },
+      { "from": "b2n0", "to": "b2n1", "type": "normal", "label": "进入三层" },
+      { "from": "b2n1", "to": "b2n2", "type": "normal", "label": "烟雾掩护" },
+      { "from": "b2n2", "to": "b2n3", "type": "normal", "label": "到达点位" },
+      { "from": "b2n3", "to": "b2n4", "type": "normal", "label": "完成涂鸦" },
+      { "from": "b2n4", "to": "b2n5", "type": "normal", "label": "QTE成功" }
+    ],
+    "critical_path": ["b0n0", "b0n1", "b0n2", "b0n3", "b1n0", "b1n1", "b1n2", "b1n3", "b2n0", "b2n1", "b2n2", "b2n3", "b2n4", "b2n5"]
+  },
+
+  "FEEL": {
+    "emotional_beats": [
+      { "node": "b0n0", "emotion": "tension_low", "intensity": 0.3, "notes": "探索铺垫，初入场景" },
+      { "node": "b0n1", "emotion": "tension_low", "intensity": 0.3, "notes": "导航阶段" },
+      { "node": "b0n2", "emotion": "excitement", "intensity": 0.5, "notes": "第一次涂鸦，初次玩法接触" },
+      { "node": "b0n3", "emotion": "tension_low", "intensity": 0.3, "notes": "过渡移动" },
+      { "node": "b0opt0", "emotion": "tension_high", "intensity": 0.7, "notes": "危险区潜行，紧张感" },
+      { "node": "b0opt1", "emotion": "tension_spike", "intensity": 0.8, "notes": "关闭监控的关键操作" },
+      { "node": "b0opt2", "emotion": "relief", "intensity": 0.4, "notes": "成功后通过擦窗器离开" },
+      { "node": "b1n0", "emotion": "tension_low", "intensity": 0.4, "notes": "二层探索" },
+      { "node": "b1n1", "emotion": "excitement", "intensity": 0.6, "notes": "保险箱玩法，推进受阻的挑战" },
+      { "node": "b1n2", "emotion": "tension_high", "intensity": 0.6, "notes": "遇到强隔断，受阻感" },
+      { "node": "b1n3", "emotion": "tension_high", "intensity": 0.5, "notes": "被迫寻找替代路线" },
+      { "node": "b2n0", "emotion": "tension_high", "intensity": 0.7, "notes": "高潮开始，从窗户进入" },
+      { "node": "b2n1", "emotion": "tension_spike", "intensity": 0.8, "notes": "使用烟雾装置，紧张节奏" },
+      { "node": "b2n2", "emotion": "tension_high", "intensity": 0.7, "notes": "烟雾中前进" },
+      { "node": "b2n3", "emotion": "excitement", "intensity": 0.8, "notes": "最终涂鸦，高潮体验" },
+      { "node": "b2n4", "emotion": "tension_spike", "intensity": 0.9, "notes": "QTE逃脱，最高紧张点" },
+      { "node": "b2n5", "emotion": "relief", "intensity": 0.9, "notes": "成功逃脱，释放" }
+    ],
+    "overall_tone": "潜入+涂鸦的渐进紧张体验，从低强度探索铺垫逐步升级到高潮逃脱",
+    "visual_references": [],
+    "audio_intent": [
+      { "region": "r_1f", "mood": "ambient_calm", "notes": "艺术馆环境音，低调" },
+      { "region": "r_1f_office", "mood": "tension_stealth", "notes": "潜行专用紧张音乐" },
+      { "region": "r_2f", "mood": "ambient_alert", "notes": "略微紧张的探索氛围" },
+      { "region": "r_3f", "mood": "action_climax", "notes": "高潮音乐，快节奏" }
+    ]
+  },
+
+  "MECHANIC": {
+    "mechanics": [
+      { "id": "mech_graffiti", "name": "涂鸦玩法", "rules": "在指定点位执行涂鸦交互，共3次（1F/3F各一次）" },
+      { "id": "mech_safe", "name": "保险箱玩法", "rules": "2F的解谜式保险箱交互" },
+      { "id": "mech_qte", "name": "QTE逃脱", "rules": "最终逃脱阶段的快速时间事件" },
+      { "id": "mech_stealth", "name": "潜行", "rules": "可选：通过办公区时避开监控" },
+      { "id": "mech_smoke", "name": "烟雾装置", "rules": "3F使用烟雾装置制造掩护" }
+    ],
+    "ai_behaviors": [],
+    "difficulty_parameters": {
+      "main_node_count": 14,
+      "branch_node_count": 3,
+      "estimated_difficulty": "中等"
+    }
+  },
+
+  "ASSET": {
+    "required_assets": [
+      { "id": "asset_artmuseum_building", "type": "mesh", "count": 1, "notes": "三层艺术馆建筑", "priority": "must_have", "region": "r_1f" },
+      { "id": "asset_graffiti_tool", "type": "mesh", "count": 1, "notes": "涂鸦工具道具", "priority": "must_have" },
+      { "id": "asset_safe", "type": "mesh", "count": 1, "notes": "2F保险箱", "priority": "must_have", "region": "r_2f" },
+      { "id": "asset_window_cleaner", "type": "mesh", "count": 1, "notes": "擦窗器（可选路线）", "priority": "nice_to_have", "region": "r_ext_window" },
+      { "id": "asset_smoke_device", "type": "vfx", "count": 1, "notes": "烟雾装置+烟雾特效", "priority": "must_have", "region": "r_3f" },
+      { "id": "asset_cctv", "type": "mesh", "count": 2, "notes": "监控摄像头（办公区）", "priority": "nice_to_have", "region": "r_1f_office" }
+    ],
+    "reuse_candidates": []
+  },
+
+  "SYSTEM": {
+    "dependencies": [
+      { "system_name": "涂鸦系统", "usage": "涂鸦交互玩法的底层支持" },
+      { "system_name": "QTE系统", "usage": "逃脱阶段的快速时间事件" },
+      { "system_name": "潜行系统", "usage": "办公区潜行检测（可选路线）" }
+    ],
+    "interfaces": [],
+    "constraints": [
+      "三层建筑需要支持多层导航",
+      "擦窗器路线需要外部攀爬系统支持",
+      "烟雾效果需要视觉遮挡系统"
+    ]
+  },
+
+  "uncertainty_flags": [
+    { "field": "SPACE.regions[*].spatial_notes", "note": "原始输入未给出具体空间尺寸和面积，此处为基于楼层的推断" },
+    { "field": "SPACE.regions[4].spatial_notes", "note": "天台/屋顶的具体布局未在输入中描述" },
+    { "field": "FEEL.emotional_beats[*].intensity", "note": "情绪强度数值为基于 beats[].strength 的归一化推断" },
+    { "field": "MECHANIC.mechanics[1].rules", "note": "保险箱玩法的具体规则未在输入中详细描述" },
+    { "field": "SYSTEM.interfaces", "note": "输入中未明确系统接口需求" }
+  ],
+
+  "source_refs": [
+    {
+      "type": "document",
+      "path": "test_cases/case_02_artmuseum/input.json",
+      "summary": "好莱坞艺术馆三层潜入关卡 flowchart 数据：14主节点+3分支节点，3个情绪段（探索铺垫→推进受阻→高潮逃脱）"
+    }
+  ],
+
+  "downstream_refs": []
+}

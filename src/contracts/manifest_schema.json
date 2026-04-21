@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Case Manifest Schema v1.0",
+  "description": "关卡设计流水线的状态中枢。记录每个模块的生命周期状态，确保已确认产物不被重新生成。",
+  "type": "object",
+  "required": ["case_id", "created_at", "ir", "modules", "assembly", "scoring"],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "description": "关卡案例ID，如 case_02_artmuseum"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "ir": {
+      "type": "object",
+      "description": "IR 数据状态",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "filled", "confirmed", "locked"],
+          "description": "pending=未填充, filled=已填充待确认, confirmed=用户确认, locked=评分通过后锁定"
+        },
+        "version": {
+          "type": "string",
+          "description": "IR 版本号，如 1.0.0"
+        },
+        "file_hash": {
+          "type": "string",
+          "description": "ir_filled.json 的 SHA-256 哈希，用于检测篡改"
+        },
+        "confirmed_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      }
+    },
+
+    "modules": {
+      "type": "object",
+      "description": "11个模块的状态记录",
+      "patternProperties": {
+        "^(level_overview|bubble_chart|emotion_curve|spatial_layout|asset_list|atmosphere_ref|storyboard|lighting_req|vfx_req|audio_req|tech_req)$": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "generated", "confirmed", "locked", "modification_requested", "modifying"],
+              "description": "pending=未生成, generated=已生成待确认, confirmed=用户确认, locked=评分通过不可重生成, modification_requested=已请求修改, modifying=修改中"
+            },
+            "version": {
+              "type": "integer",
+              "default": 0,
+              "description": "模块版本号，每次修改+1"
+            },
+            "file_hash": {
+              "type": ["string", "null"],
+              "description": "模块 HTML 文件的 SHA-256 哈希"
+            },
+            "generated_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "confirmed_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "locked_at": {
+              "type": ["string", "null"],
+              "format": "date-time"
+            },
+            "ir_version_used": {
+              "type": ["string", "null"],
+              "description": "生成时使用的 IR 版本，用于追溯一致性"
+            },
+            "modification_history": {
+              "type": "array",
+              "description": "修改记录（仅 locked 后的增量修改）",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "version": { "type": "integer" },
+                  "reason": { "type": "string", "description": "修改原因" },
+                  "requester": { "type": "string", "description": "发起修改的角色（如 level_design, art, lighting）" },
+                  "changes": { "type": "string", "description": "修改内容摘要" },
+                  "previous_hash": { "type": "string" },
+                  "new_hash": { "type": "string" },
+                  "modified_at": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "assembly": {
+      "type": "object",
+      "description": "组装状态",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "assembled", "locked"]
+        },
+        "file_hash": { "type": ["string", "null"] },
+        "assembled_at": { "type": ["string", "null"], "format": "date-time" },
+        "modules_snapshot": {
+          "type": "object",
+          "description": "组装时各模块的版本和哈希快照，用于验证组装产物是否过期",
+          "patternProperties": {
+            ".*": {
+              "type": "object",
+              "properties": {
+                "version": { "type": "integer" },
+                "hash": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "scoring": {
+      "type": "object",
+      "description": "评分状态",
+      "properties": {
+        "auto_score": { "type": ["number", "null"] },
+        "auto_score_details": { "type": ["object", "null"] },
+        "human_scores": {
+          "type": ["object", "null"],
+          "properties": {
+            "usability": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "accuracy": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "completeness": { "type": "integer", "minimum": 1, "maximum": 5 }
+          }
+        },
+        "passed": { "type": ["boolean", "null"] },
+        "scored_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "review_log": {
+      "type": "array",
+      "description": "审核日志（预留，记录未来推送到群聊/看板的审核事件）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": ["submit_for_review", "approved", "rejected", "comment"],
+            "description": "审核事件类型"
+          },
+          "module": { "type": "string", "description": "相关模块ID" },
+          "reviewer": { "type": "string", "description": "审核人" },
+          "comment": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "channel": {
+            "type": "string",
+            "description": "推送渠道（预留，如 feishu/wecom/slack）"
+          }
+        }
+      }
+    }
+  }
+}

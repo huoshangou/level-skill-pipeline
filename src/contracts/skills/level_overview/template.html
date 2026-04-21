@@ -1,0 +1,181 @@
+<!--
+    MODULE: level_overview
+    REQUIRED IR DIMENSIONS: ALL (IR 全维度)
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: 关卡属性表, 核心体验, 设计说明, 流程简述, 关卡数据摘要, 不确定项
+      - Property table: 2-column grid with label(180px)+value
+      - Experience grid: 3-column cards (Fantasy/Challenge/Sensation)
+      - Data summary table columns: 维度, 数据
+      - Uncertainty table columns: 字段, 说明
+      - Module badge: [LEVEL OVERVIEW]
+      - Footer: Level Design Agent · LevelOverview v1.0 · 数据来源: ALL (IR 全维度)
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关卡概览 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+
+        /* property table */
+        .prop-table{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:24px;border:2px solid var(--border);}
+        .prop-row{display:flex;border-bottom:1px solid var(--border-light);}
+        .prop-row:last-child{border-bottom:none;}
+        .prop-label{width:180px;padding:10px 14px;font-size:12px;font-weight:600;color:var(--text-secondary);background:var(--bg-secondary);border-right:1px solid var(--border-light);flex-shrink:0;}
+        .prop-value{flex:1;padding:10px 14px;font-size:13px;color:var(--text-primary);}
+        .prop-full{grid-column:1/-1;}
+        .prop-full .prop-label{width:180px;}
+
+        /* tags */
+        .tag{display:inline-block;padding:2px 10px;font-size:10px;font-weight:600;letter-spacing:.5px;border:1px solid;}
+        .tag.type{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.tier{border-color:var(--blue);color:var(--blue);background:rgba(65,105,225,.05);}
+        .tag.yes{border-color:var(--green);color:var(--green);}
+        .tag.no{border-color:var(--text-muted);color:var(--text-muted);}
+        .tag.flow{border-color:var(--text-secondary);color:var(--text-secondary);}
+
+        .section-title{font-size:14px;font-weight:600;margin:24px 0 10px;padding-left:10px;border-left:3px solid var(--accent);}
+
+        .callout{padding:16px 20px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid var(--accent);margin:16px 0;font-size:13px;color:var(--text-secondary);line-height:1.7;}
+        .callout strong{color:var(--text-primary);}
+
+        .experience-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0;}
+        .exp-card{background:var(--bg-card);border:2px solid var(--border);padding:16px;}
+        .exp-card h4{font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.5px;margin-bottom:8px;}
+        .exp-card p{font-size:12px;color:var(--text-secondary);line-height:1.6;}
+
+        .flow-summary{background:var(--bg-card);border:2px solid var(--border);padding:20px;margin:16px 0;font-size:13px;color:var(--text-secondary);line-height:1.8;}
+        .flow-summary strong{color:var(--text-primary);}
+        .flow-arrow{color:var(--accent);font-weight:700;margin:0 4px;}
+
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin:12px 0;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:8px 10px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:8px 10px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);}
+        tr:hover td{background:rgba(255,69,0,.03);}
+
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media(max-width:800px){.prop-table{grid-template-columns:1fr;}.experience-grid{grid-template-columns:1fr;}}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="level-overview" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[LEVEL OVERVIEW]</div>
+        <h1>关卡概览 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>版本: {{version}}</span>
+            <span>最后修改: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <!-- ===== 关卡属性表 ===== -->
+    <div class="section-title">关卡属性</div>
+    <div class="prop-table">
+        <div class="prop-row">
+            <div class="prop-label">关卡名称</div>
+            <div class="prop-value">{{level_name}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">关卡类型</div>
+            <div class="prop-value"><span class="tag type">{{type}}</span></div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">动线流程类别</div>
+            <div class="prop-value"><span class="tag flow">{{flow_type}}</span></div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">动线流程等级</div>
+            <div class="prop-value"><span class="tag tier">{{flow_tier}}</span></div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">流程时长</div>
+            <div class="prop-value">{{duration}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">关卡规模</div>
+            <div class="prop-value">{{scale}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">关卡氛围</div>
+            <div class="prop-value">{{atmosphere}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">是否组队</div>
+            <div class="prop-value"><span class="tag {{is_team_tag}}">{{is_team}}</span> {{team_detail}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">是否限制角色</div>
+            <div class="prop-value"><span class="tag {{is_char_limit_tag}}">{{is_char_limit}}</span> {{char_limit_detail}}</div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">是否走加载流程</div>
+            <div class="prop-value"><span class="tag {{is_loading_tag}}">{{is_loading}}</span></div>
+        </div>
+        <div class="prop-row">
+            <div class="prop-label">是否存在限时环节</div>
+            <div class="prop-value"><span class="tag {{is_timed_tag}}">{{is_timed}}</span> {{timed_detail}}</div>
+        </div>
+        <!-- REPEAT: one prop-row per property from IR.META -->
+    </div>
+
+    <!-- ===== 核心体验 ===== -->
+    <div class="section-title">核心体验</div>
+    <div class="callout">
+        <strong>一句话概括：</strong>{{one_line_summary}}
+    </div>
+
+    <div class="experience-grid">
+        <div class="exp-card">
+            <h4>Fantasy 幻想</h4>
+            <p>{{fantasy_desc}}</p>
+        </div>
+        <div class="exp-card">
+            <h4>Challenge 挑战</h4>
+            <p>{{challenge_desc}}</p>
+        </div>
+        <div class="exp-card">
+            <h4>Sensation 感官</h4>
+            <p>{{sensation_desc}}</p>
+        </div>
+    </div>
+
+    <!-- ===== 设计说明 ===== -->
+    <div class="section-title">设计说明</div>
+    <div class="callout">
+        {{design_notes}}
+    </div>
+
+    <!-- ===== 流程简述 ===== -->
+    <div class="section-title">流程简述</div>
+    <div class="flow-summary">
+        {{flow_summary}}
+        <!-- Generate beat-by-beat flow using flow-arrow spans, follow the structure:
+             <strong>Beat Name</strong>（强度 X/10）<br>
+             Node <span class="flow-arrow">→</span> Node <span class="flow-arrow">→</span> ...
+             Optional branches with <span style="color:var(--text-muted);font-size:11px;">├ 可选分支：...</span>
+        -->
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · LevelOverview Skill v1.0</span>
+        <span>数据来源: ALL (IR 全维度)</span>
+    </div>
+
+</section>
+</body>
+</html>

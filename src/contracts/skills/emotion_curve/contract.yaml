@@ -1,0 +1,39 @@
+skill_name: "EmotionCurve"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "FEEL.emotional_beats"
+    - path: "FEEL.overall_tone"
+    - path: "FLOW.nodes"
+      description: "节点名称用于X轴标签"
+    - path: "FLOW.critical_path"
+      description: "关键路径节点高亮"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "emotion-curve"
+  structure:
+    - "X轴：流程节点（按关键路径顺序）"
+    - "Y轴：情绪强度（0.0-1.0）"
+    - "折线图 + 区域填充"
+    - "节点标记按情绪类型着色"
+    - "overall_tone 作为标题摘要"
+
+quality:
+  auto_checks:
+    - name: "beat_coverage"
+      rule: "所有 emotional_beats 中的节点都出现在图表中"
+      severity: "error"
+    - name: "intensity_range"
+      rule: "所有 intensity 值在 0.0-1.0 范围内"
+      severity: "error"
+
+downstream:
+  - skill: "POIDocAssembler"

@@ -1,0 +1,41 @@
+skill_name: "LightingReq"
+version: "1.0.0"
+owner_agent: "level_design_agent"
+priority: "P1"
+
+input:
+  ir_fields_required:
+    - path: "level_id"
+    - path: "level_name"
+    - path: "FEEL.emotional_beats"
+      description: "情绪节拍驱动灯光方案的情绪支撑列"
+    - path: "FEEL.overall_tone"
+    - path: "SPACE.regions"
+      description: "每个区域一行灯光方案"
+  upstream_dependencies: []
+
+output:
+  output_type: "document"
+  format: "html"
+  data_module: "lighting-req"
+  structure:
+    - "设计说明（整体灯光基调）"
+    - "区域灯光表（8列：区域/楼层/主光源/色温色调/亮度倾向/特殊灯光/情绪支撑/参考）"
+    - "转场灯光表（4列：触发点/灯光变化/过渡方式/时长建议）"
+    - "color-swatch 行内色块预览（16x16）"
+
+quality:
+  auto_checks:
+    - name: "region_coverage"
+      rule: "所有 SPACE.regions 都有对应的灯光方案行"
+      severity: "error"
+    - name: "table_columns"
+      rule: "区域灯光表固定 8 列，不多不少"
+      severity: "error"
+    - name: "transition_present"
+      rule: "至少有 1 个转场灯光节点"
+      severity: "warning"
+
+downstream:
+  - skill: "POIDocAssembler"
+    consumes: "灯光需求表，嵌入到组装文档中"

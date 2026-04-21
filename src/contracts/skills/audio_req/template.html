@@ -1,0 +1,130 @@
+<!--
+    MODULE: audio_req
+    REQUIRED IR DIMENSIONS: IR.FEEL + IR.SPACE + IR.MECHANIC
+    STRUCTURAL RULES:
+      - max-width: 1100px
+      - Required sections: Design Callout, BGM Table, SFX Table, Ambience Table
+      - BGM table columns: 区域, 音乐风格, 节奏BPM, 情绪, 触发方式, 过渡, 参考, 优先级
+      - SFX table columns: #, 音效名称, 触发节点, 描述, 空间化, 优先级
+      - Ambience table columns: 区域, 底噪描述, 音量层级
+      - Tags: .bgm, .sfx, .amb, .must, .nice
+      - Module badge: [AUDIO REQUIREMENTS]
+      - Footer: Level Design Agent · AudioReq Skill v1.0 · 数据来源: IR.FEEL + IR.SPACE + IR.MECHANIC
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频需求表 — {{level_name}}</title>
+    <style>
+        :root{--bg-primary:#F4F4F0;--bg-secondary:#E8E8E4;--bg-card:#FFFFFF;--text-primary:#111111;--text-secondary:#333333;--text-muted:#666666;--accent:#FF4500;--border:#111111;--border-light:#CCCCCC;--green:#228B22;--blue:#4169E1;}
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;}
+        .module{max-width:1100px;margin:0 auto;padding:40px 32px;}
+        .module-header{margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+        .module-badge{display:inline-block;font-size:11px;color:var(--accent);letter-spacing:2px;font-weight:500;text-transform:uppercase;margin-bottom:8px;}
+        .module-header h1{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+        .module-meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+        .section-title{font-size:14px;font-weight:600;margin:20px 0 8px;padding-left:10px;border-left:3px solid var(--accent);}
+        .table-wrapper{overflow-x:auto;border:2px solid var(--border);margin-bottom:16px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        thead{background:var(--bg-secondary);}
+        th{padding:10px 12px;text-align:left;font-weight:600;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);}
+        td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+        tr:hover td{background:rgba(255,69,0,.03);}
+        .tag{display:inline-block;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.3px;border:1px solid;}
+        .tag.bgm{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.sfx{border-color:var(--blue);color:var(--blue);}
+        .tag.amb{border-color:var(--green);color:var(--green);}
+        .tag.must{border-color:var(--accent);color:var(--accent);background:rgba(255,69,0,.05);}
+        .tag.nice{border-color:var(--text-muted);color:var(--text-muted);}
+        .callout{padding:12px 16px;background:var(--bg-card);border:2px solid var(--border);border-left:4px solid var(--accent);margin-bottom:20px;font-size:13px;color:var(--text-secondary);}
+        .module-footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
+        @media print{body{background:white;}.module{padding:20px;}}
+    </style>
+</head>
+<body>
+<section class="module" data-module="audio-req" data-level-id="{{level_id}}">
+
+    <div class="module-header">
+        <div class="module-badge">[AUDIO REQUIREMENTS]</div>
+        <h1>音频需求表 — {{level_name}}</h1>
+        <div class="module-meta">
+            <span>关卡 ID: {{level_id}}</span>
+            <span>区域数: {{region_count}}</span>
+            <span>生成时间: {{timestamp}}</span>
+        </div>
+    </div>
+
+    <div class="callout">
+        <strong>音频设计总纲：</strong>{{audio_overview}}
+    </div>
+
+    <div class="section-title">背景音乐 (BGM)</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>区域</th><th>音乐风格</th><th>节奏BPM</th><th>情绪</th><th>触发方式</th><th>过渡</th><th>参考</th><th>优先级</th></tr>
+            </thead>
+            <tbody>
+                <!-- REPEAT: one row per BGM entry from IR.FEEL + IR.SPACE -->
+                <tr>
+                    <td><strong>{{region_name}}</strong></td>
+                    <td>{{music_style}}</td>
+                    <td>{{bpm}}</td>
+                    <td>{{emotion}}</td>
+                    <td>{{trigger}}</td>
+                    <td>{{transition}}</td>
+                    <td>{{reference}}</td>
+                    <td><span class="tag {{priority_tag}}">{{priority}}</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">音效 (SFX)</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>#</th><th>音效名称</th><th>触发节点</th><th>描述</th><th>空间化</th><th>优先级</th></tr>
+            </thead>
+            <tbody>
+                <!-- REPEAT: one row per SFX entry from IR.MECHANIC -->
+                <tr>
+                    <td>{{sfx_index}}</td>
+                    <td>{{sfx_name}}</td>
+                    <td>{{trigger_nodes}}</td>
+                    <td>{{sfx_description}}</td>
+                    <td>{{spatialization}}</td>
+                    <td><span class="tag {{priority_tag}}">{{priority}}</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">环境音 (Ambience)</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>区域</th><th>底噪描述</th><th>音量层级</th></tr>
+            </thead>
+            <tbody>
+                <!-- REPEAT: one row per region ambience from IR.SPACE -->
+                <tr>
+                    <td>{{region_name}}</td>
+                    <td>{{ambience_description}}</td>
+                    <td>{{volume_level}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module-footer">
+        <span>Level Design Agent · AudioReq Skill v1.0</span>
+        <span>数据来源: IR.FEEL + IR.SPACE + IR.MECHANIC</span>
+    </div>
+
+</section>
+</body>
+</html>
