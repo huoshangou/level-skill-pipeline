@@ -9,11 +9,15 @@ package-lock.json
 src/outputs/
 src/scoring/
 
-# Per-machine case data (e.g. company-internal cases like case_05_gangster_mansion).
-# Seed cases (case_01, case_02) ARE tracked. Trailing slash omitted so it catches symlinks too.
-src/test_cases/case_05_*
+# Per-case workspace — local only by default.
+# Reference fixture: case_02_artmuseum is the only seed case kept in repo.
+# (Earlier policy also tracked case_01; revised because per-case ir_filled.json
+#  drifts every session and pollutes diffs.)
+# Trailing slash omitted so it catches symlinks too.
+src/test_cases/case_01_*
 src/test_cases/case_03_*
 src/test_cases/case_04_*
+src/test_cases/case_05_*
 
 # Installer logs
 *.log
