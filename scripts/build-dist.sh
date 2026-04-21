@@ -29,8 +29,30 @@ mkdir -p "$STAGE/data" "$STAGE/commands"
 # ── Copy src content as `data/` (matches installer expectations) ──
 cp -R src/contracts  "$STAGE/data/"
 cp -R src/pipeline   "$STAGE/data/"
-cp -R src/test_cases "$STAGE/data/"
 cp    src/package.json "$STAGE/data/"
+
+# test_cases: WHITELIST only — never ship company-internal cases (case_03+).
+# Add new seed cases here explicitly; default is to NOT ship.
+mkdir -p "$STAGE/data/test_cases"
+SEED_CASES=(case_01_truck case_02_artmuseum)
+for c in "${SEED_CASES[@]}"; do
+    if [ -d "src/test_cases/$c" ]; then
+        cp -R "src/test_cases/$c" "$STAGE/data/test_cases/"
+    else
+        echo "  WARN: seed case missing: src/test_cases/$c" >&2
+    fi
+done
+
+# Sanity guard: refuse to ship if anything other than the seed list snuck in
+SHIPPED="$(/bin/ls "$STAGE/data/test_cases/" | sort)"
+EXPECTED="$(printf "%s\n" "${SEED_CASES[@]}" | sort)"
+if [ "$SHIPPED" != "$EXPECTED" ]; then
+    echo "ERROR: test_cases contains unexpected entries:" >&2
+    echo "  Got:      $SHIPPED" >&2
+    echo "  Expected: $EXPECTED" >&2
+    rm -rf "$STAGE"
+    exit 1
+fi
 
 # ── Copy slash commands ──
 cp src/commands/*.md "$STAGE/commands/"
