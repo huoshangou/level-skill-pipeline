@@ -6,6 +6,7 @@
 **v2.1 新增：Manifest 状态中枢，确认即锁定，不可重生成。**
 **v2.2 新增：类型感知模块裁剪。玩法类关卡在 Phase 2 前询问确认可选模块，避免生成无意义的氛围参考等 POI 专属内容。**
 **v2.3 新增：Phase 1.7 参考素材收集节点，生成前向设计师收集参考截图/白盒图，base64 嵌入 HTML。emotion_curve 对纯框架玩法改为可选。合作需求清单强制走标准模板填写。**
+**v2.4 移除：spatial_topology 模块（contract、template、extractor、scorer 占位全清）。功能由 bubble_chart（流程拓扑）+ spatial_layout（完整空间布局）共同覆盖，独立拓扑图属冗余。**
 
 ## 输入
 

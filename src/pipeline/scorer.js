@@ -210,14 +210,6 @@ function scoreFidelity() {
         if (found < total) score -= 0.1 * ((total - found) / total);
     }
 
-    // 4.3 区域覆盖检查（通过 spatial_layout 或其他模块覆盖）
-    if (false && ir.SPACE?.regions) { // 已移除 spatial_topology，此检查暂保留占位
-        let found = 0;
-        const total = ir.SPACE.regions.length;
-        checks.push({ check: 'region_coverage', result: `${found}/${total}`, pass: found === total });
-        if (found < total) score -= 0.1 * ((total - found) / total);
-    }
-
     return { dimension: 'fidelity', weight: 0.2, score: Math.max(0, score), checks };
 }
 

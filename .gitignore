@@ -9,6 +9,12 @@ package-lock.json
 src/outputs/
 src/scoring/
 
+# Per-machine case data (e.g. company-internal cases like case_05_gangster_mansion).
+# Seed cases (case_01, case_02) ARE tracked. Trailing slash omitted so it catches symlinks too.
+src/test_cases/case_05_*
+src/test_cases/case_03_*
+src/test_cases/case_04_*
+
 # Installer logs
 *.log
 levelagent_install_*.log

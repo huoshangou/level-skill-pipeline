@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1 — 2026-04-21
+
+**移除 spatial_topology 模块**（彻底清理，非软裁剪）：
+- 删 `contracts/skills/spatial_topology/`（contract.yaml + template.html）
+- 删 `pipeline/lib/extractors.js` 里的 `extractSpatialTopology` + `forceDirectedLayout`（共 226 行）
+- 清 `pipeline/scorer.js` 里 `if (false && ...)` 的 region_coverage 占位
+- `commands/design-level.md` 加 v2.4 版本说明
+- 理由：bubble_chart 已覆盖流程拓扑，spatial_layout 已覆盖空间结构，独立的拓扑图模块冗余且历史上误导 LLM 把它当成"应该生成的产物"
+
+**改进：**
+- `release.sh` 一键发版（build + tag + push + GH release，含 pre-flight 检查）
+- `.gitignore` 新增 `src/test_cases/case_03_*` `case_04_*` `case_05_*` 排除规则（公司内部 case 用 symlink 接入，不进 repo）
+
+**11 模块（之前 12，移除 spatial_topology 后）：**
+level_overview · bubble_chart · emotion_curve · spatial_layout · asset_list · atmosphere_ref · storyboard · lighting_req · vfx_req · audio_req · tech_req
+
+---
+
 ## v1.0 — 2026-04-21
 
 首个独立 release，从 LevelAgent 重命名为 Level Skill Pipeline。
