@@ -32,6 +32,34 @@ $ARGUMENTS
 
 ---
 
+## 上下文预算（v2.5 新增 · 红线）
+
+> **背景：** Claude API 单请求 32MB 上限。叠加历史 + 已生成 HTML，**几张图片粘贴就足够撞死整个会话**（见 case_01_truck 事故）。
+
+**铁律：**
+
+| 红线 | 替代做法 |
+|------|---------|
+| ❌ 禁止用户/agent 把图片粘贴进对话（截图、参考图、白盒图都算） | ✅ 用户给**文件路径**，agent 调 `pipeline/ingest_image.js` 入库 |
+| ❌ 禁止 agent 用 Read 工具读图片文件（Read 同样会把 base64 吃进 context） | ✅ 一律走 `ingest_image.js`，stdout 只回 metadata |
+| ❌ 禁止把已生成的 HTML 模块整文粘回对话上下文做"参考" | ✅ 报告时只引用文件路径 + 字节数 + 几行摘要 |
+| ❌ 单图 > 1.5MB | ✅ 先压缩；脚本默认拒收 |
+
+**ingest_image.js 用法速查：**
+
+```bash
+node pipeline/ingest_image.js \
+  --case=outputs/{case_id} \
+  --src=outputs/{case_id}/refs/{filename} \
+  --label={short_id} \
+  --category=overview_reference \
+  --caption="{中文描述}"
+```
+
+stdout 形如 `{"ok":true,"label":"...","bytes":523456,"sha":"...","total_assets":3}`，**不**返回 base64。下游模板（如 level_overview「参考作品」区块）从 `manifest.reference_assets[]` 里取 `data_uri`。
+
+---
+
 ## 编排流程
 
 ### Phase 0: 初始化
@@ -228,7 +256,8 @@ $ARGUMENTS
 
    ② 其他参考截图 — 核心参考作品截图、概念图（嵌入关卡概览）
 
-   请提供文件路径，或直接粘贴图片。
+   请提供**文件路径**（如 outputs/{case_id}/refs/approach.png）。
+   ⚠ 不要直接粘贴图片——会触发 32MB 请求上限（参见上文「上下文预算」红线）。
    输入 "跳过" 则在文档中留占位符，后续可增量补充。
    ```
 
@@ -248,10 +277,11 @@ $ARGUMENTS
    - 若找到且 shape.images 非空：`{{ref_img_html}}` = `<div class="img-ref"><img src="{images[0].src}"></div>`
    - 若无图：`{{ref_img_html}}` = `<div class="img-placeholder">待提供<br>[设计师可用 editor.html 添加]</div>`
 
-5. **用户提供通用参考截图时：**
-   - 读取图片 → 转 base64 Data URI
-   - 暂存到 manifest.json 的 `reference_assets` 字段
-   - 嵌入 level_overview「参考作品」区块
+5. **用户提供通用参考截图时（v2.5 更新 · 走脚本，禁止 Read 图片）：**
+   - 让用户把图片放到 `outputs/{case_id}/refs/` 下，告诉你路径
+   - 调 `node pipeline/ingest_image.js --case=outputs/{case_id} --src={path} --label={short_id} --category=overview_reference --caption="{中文描述}"`
+   - 脚本写入 `manifest.reference_assets[]`，stdout 只回 metadata
+   - 下游模板（level_overview「参考作品」区块）从 `manifest.reference_assets` 取 `data_uri` 注入
 
 6. **用户跳过时：**
    - layout 相关: `spatial_layout.status = "skipped"`，skip_reason: "设计师跳过"
