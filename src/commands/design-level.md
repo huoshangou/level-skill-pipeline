@@ -24,7 +24,7 @@ $ARGUMENTS
 输入 → IR 填充 → [v2.2] 类型感知模块裁剪 → N 模块生成（跳过已锁定/已跳过） → 自动组装 → 评分 → 锁定
 ```
 
-项目路径：`~/.claude/level-skill-pipeline/`
+项目路径：`~/.claude/levelagent/`
 
 ### 核心原则（v2.1 新增）
 
@@ -65,14 +65,14 @@ stdout 形如 `{"ok":true,"label":"...","bytes":523456,"sha":"...","total_assets
 ### Phase 0: 初始化
 
 1. 读取项目契约和规范：
-   - IR Schema: `~/.claude/level-skill-pipeline/contracts/ir_schema.json`
-   - Manifest Schema: `~/.claude/level-skill-pipeline/contracts/manifest_schema.json`
-   - 模块规范: `~/.claude/level-skill-pipeline/contracts/module_spec.md`
-   - 渲染标准: `~/.claude/level-skill-pipeline/contracts/render_standards.md`
+   - IR Schema: `~/.claude/levelagent/contracts/ir_schema.json`
+   - Manifest Schema: `~/.claude/levelagent/contracts/manifest_schema.json`
+   - 模块规范: `~/.claude/levelagent/contracts/module_spec.md`
+   - 渲染标准: `~/.claude/levelagent/contracts/render_standards.md`
 
 2. 确定 case_id（如用户未指定，从输入内容推断，格式 `case_XX_{名称}`）
 
-3. 确认输出目录：`~/.claude/level-skill-pipeline/outputs/{case_id}/`
+3. 确认输出目录：`~/.claude/levelagent/outputs/{case_id}/`
 
 4. **[v2.1] 加载或创建 Manifest：**
    - 检查 `outputs/{case_id}/manifest.json` 是否存在
@@ -146,9 +146,59 @@ stdout 形如 `{"ok":true,"label":"...","bytes":523456,"sha":"...","total_assets
 
 > 确认 IR 是否准确？如需调整请说明。
 
-- 确认 → **[v2.1] 更新 manifest: ir.status = "confirmed"，计算并存储 file_hash** → Phase 2
+- 确认 → **[v2.1] 更新 manifest: ir.status = "confirmed"，计算并存储 file_hash** → Phase 1.4
 - 修改 → 调整 IR，重新展示
 - 大改 → 重新提问
+
+---
+
+### Phase 1.4: 跨案例匹配 [v2.5 新增]
+
+**目标：** 用 `contracts/case_index.json` 做确定性匹配，向设计师推荐相似已有案例。
+
+**设计原则：**
+- 确定性匹配（脚本字段比较），不是 LLM 联想式检索
+- 仅推荐，不替代设计判断 — 输出 top 2-3 案例 + 简短匹配理由
+
+**执行：**
+```bash
+node pipeline/match_cases.js {case_id}
+# 读 test_cases/{case_id}/ir_filled.json + contracts/case_index.json
+# 按规则输出 top 2-3 匹配 + 字段对齐说明
+```
+
+**匹配规则：**
+1. 硬约束：`type` 完全一致（不同 type 不互推）
+2. 强信号：`mechanics_tag` 交集 ≥ 1
+3. 弱信号：`emotions_top` 交集 ≥ 2
+4. 排序：(mechanics_tag 交集大小 × 2) + emotions_top 交集大小 降序
+
+**输出格式（向设计师展示）：**
+```
+【相似案例参考 (top N)】
+当前: type={type}, mechanics_tag=[{...}], emotions_top=[{...}]
+
+1. {case_id} ({level_name}) — 匹配 mechanics=[...], emotions=[...]
+   region {N} / node {M}
+   关键学习：
+   - {key_learning_1}
+   - {key_learning_2}
+
+2. ...
+
+> 仅供参考。当前案例的设计意图优先于参考案例。
+```
+
+**HITL：** 展示后等设计师确认/跳过 → Phase 1.5。允许设计师标注"这条参考有用 / 无关"，记录到 manifest（用于后续提升匹配规则）。
+
+**首次接入（case_index 不存在或为空时）：** 跳过本 Phase，提示"case_index.json 待建立"。
+
+**新案例完成后（Phase 5 末尾追加）：**
+- 将本案例 entry 写入 `contracts/case_index.json`
+- key_learnings 字段由 LLM 初拟，设计师审查后入库
+- 引入新 mechanics_tag 时同步更新 tag_taxonomy_note
+
+**配套：** `contracts/case_index.json`（数据） + `pipeline/match_cases.js`（执行）
 
 ---
 
@@ -324,7 +374,7 @@ stdout 形如 `{"ok":true,"label":"...","bytes":523456,"sha":"...","total_assets
 - 如不存在则 fallback 到 `template.html`
 - `fill_template.js` 的 `resolveTemplatePath()` 自动处理
 
-**执行指南：** 读取 `~/.claude/level-skill-pipeline/pipeline/02_skill_router.md` 了解 Router 逻辑。
+**执行指南：** 读取 `~/.claude/levelagent/pipeline/02_skill_router.md` 了解 Router 逻辑。
 
 **模块生成顺序（按依赖关系分波，仅生成非 skipped 模块）：**
 
@@ -412,7 +462,7 @@ contracts/skills/{module_id}/template.html
 
 1. 运行组装脚本（Node.js）：
    ```bash
-   node "~/.claude/level-skill-pipeline/pipeline/assemble_document.js" "outputs/{case_id}"
+   node "~/.claude/levelagent/pipeline/assemble_document.js" "outputs/{case_id}"
    ```
 
 2. 脚本自动完成：
@@ -434,7 +484,7 @@ contracts/skills/{module_id}/template.html
 
 **执行：** 运行自动评分脚本：
 ```bash
-node "~/.claude/level-skill-pipeline/pipeline/scorer.js" "outputs/{case_id}"
+node "~/.claude/levelagent/pipeline/scorer.js" "outputs/{case_id}"
 ```
 
 脚本自动完成 4 维度评分、生成 score_report.json、更新 manifest.scoring。
@@ -476,9 +526,37 @@ node "~/.claude/level-skill-pipeline/pipeline/scorer.js" "outputs/{case_id}"
 
 ---
 
+### Phase 5.0: Deck 视图生成（可选,锁定后）
+
+锁定完成后,询问用户是否生成横向翻页 deck 视图:
+
+```
+【可选:生成 deck 视图】
+把 N 个模块包装成横向翻页杂志风文档,可发群/汇报。
+  Y     生成 deck/index.html(同目录依赖)+ deck/portable.html(单文件可发群,~30-60MB)
+  L     仅生成 index.html(本地预览,文件小)
+  N     跳过(后续可独立调用 /level-deck {case_id})
+```
+
+用户选 Y → 执行:
+```bash
+node "$HOME/.claude/levelagent/pipeline/render_deck.js" {case_id} --portable
+```
+
+用户选 L → 执行(无 --portable):
+```bash
+node "$HOME/.claude/levelagent/pipeline/render_deck.js" {case_id}
+```
+
+用户选 N → 跳过。后续可调 `/level-deck {case_id}` 独立生成。
+
+**渲染失败不阻塞主流程**(deck 是视图层,不影响 manifest locked 状态)。失败时记录日志,继续 Phase 5 交付汇总。
+
+---
+
 ### Phase 5: 交付汇总
 
-向用户展示最终产出清单：
+向用户展示最终产出清单(若 Phase 5.0 生成了 deck,追加 deck 块):
 
 ```
 【关卡设计文档完成】
@@ -491,6 +569,10 @@ node "~/.claude/level-skill-pipeline/pipeline/scorer.js" "outputs/{case_id}"
   📑 POI 完整文档:    outputs/{case_id}/poi_document.html
   📊 评分报告:        outputs/{case_id}/score_report.json
   🔒 状态清单:        outputs/{case_id}/manifest.json
+
+[若 Phase 5.0 生成了 deck,追加:]
+  🎞️  Deck 视图:       outputs/{case_id}/deck/index.html (本地预览,17 页)
+  📦 单文件版:         outputs/{case_id}/deck/portable.html (可发群,~XX MB)
 
 独立模块 (outputs/{case_id}/):
   ├─ level_overview.html     关卡概览          [LOCKED v{n}]

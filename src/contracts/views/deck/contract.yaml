@@ -1,0 +1,176 @@
+view_name: "Deck"
+version: "0.2.1"
+owner_agent: "level_design_agent"
+layer: "view"
+priority: "P2"
+status: "draft"
+
+# View 与 Skill 的区别：
+# - skill: 数据生产者，每个产出一段 HTML（被 assemble 串）
+# - view:  数据消费者，跨模块聚合呈现（与 assembled_document 平级）
+# Deck 不参与 manifest 锁定流程，不影响 score。
+#
+# v0.2 方向修正：deck 不重新叙事，只把 13 模块包进 slide 容器（iframe 隔离）。
+# 主体内容由 13 模块自身负责；deck 只提供「呈现层壳」（横向滑动 + 翻页 + 字体 + WebGL + 章节节奏）。
+
+input:
+  source:
+    - kind: "ir"
+      path: "test_cases/{case_id}/ir_filled.json"
+      required: true
+      consumed_by: "cover / open_loops / coda 的元数据"
+    - kind: "manifest"
+      path: "outputs/{case_id}/manifest.json"
+      required: true
+      gate: "ir.status IN ('confirmed', 'locked') AND assembly.status == 'assembled'"
+      gate_hint: "deck 接受 confirmed 或 locked 的 IR（locked 更严格）+ 已 assembled 的模块文件"
+    - kind: "modules"
+      path: "outputs/{case_id}/{module}.html"
+      required: true
+      consumed_by: "module_wrap iframe src（13 个模块文件）"
+      list:
+        - "level_overview.html"
+        - "spatial_layout.html"
+        - "atmosphere_ref.html"
+        - "bubble_chart.html"
+        - "emotion_curve.html"
+        - "storyboard.html"
+        - "lighting_req.html"
+        - "vfx_req.html"
+        - "audio_req.html"
+        - "tech_req.html"
+        - "asset_list.html"
+
+  ir_fields_consumed:
+    # v0.2.1 大幅瘦身 — deck 不再消费 IR 的内容字段，仅用元数据
+    # 注: uncertainty_flags 已从 deck 输出中移除（用户反馈"log 噪音"，不应在面向团队的 deck 中出现）
+    - path: "level_id"
+    - path: "level_name"
+    - path: "type"
+      description: "决定 case_type → theme 映射 + 玩法 vs 关卡术语切换"
+    - path: "FEEL.overall_tone"
+      description: "用于 cover slide 的 HOOK_PARAGRAPH 一句话开场"
+    - path: "version"
+      description: "在 cover / coda meta 显示"
+  upstream_dependencies: []
+
+# 玩法 vs 关卡术语切换（来源: contracts/level_type_rules.md）
+# 玩法类 case (OpenWorldEvent / OpenWorldChallenge) 的 deck 必须用「玩法」字样，不能用「关卡」
+# 详见 ~/.claude/projects/-Users-mofashu/memory/feedback_levelagent_gameplay_vs_level.md
+term_mapping:
+  spatial:
+    case_types: ["POI", "MainMission(场景叙事)", "SideQuest(探索)"]
+    docCN: "关卡设计文档"
+    docEN: "Level Design Document"
+    overview: "关卡概览"
+    act_titles: ["关卡定调", "空间与氛围", "节奏与情绪", "制作需求"]
+  gameplay:
+    case_types: ["OpenWorldEvent", "OpenWorldChallenge", "MainMission(纯玩法)", "SideQuest(纯机制)"]
+    docCN: "玩法设计文档"
+    docEN: "Gameplay Design Document"
+    overview: "玩法概览"
+    act_titles: ["玩法定调", "机制与流程", "节奏与情绪", "制作需求"]
+
+# Act 分组（render_deck.js 写死，新增模块需更新此处）
+# title 按 isGameplay() 切换：spatial → 关卡定调/空间与氛围；gameplay → 玩法定调/机制与流程
+# spatial_topology 已在 changelog v2.4 移除，永不引用
+act_grouping:
+  - act: 1
+    title_spatial: "关卡定调"
+    title_gameplay: "玩法定调"
+    title_en: "Tone"
+    theme: "hero light"
+    modules: ["level_overview"]
+  - act: 2
+    title_spatial: "空间与氛围"
+    title_gameplay: "机制与流程"
+    title_en: "Space"
+    theme: "hero dark"
+    modules: ["spatial_layout", "atmosphere_ref", "bubble_chart"]
+  - act: 3
+    title_spatial: "节奏与情绪"
+    title_gameplay: "节奏与情绪"
+    title_en: "Rhythm"
+    theme: "hero light"
+    modules: ["emotion_curve", "storyboard"]
+  - act: 4
+    title_spatial: "制作需求"
+    title_gameplay: "制作需求"
+    title_en: "Production"
+    theme: "hero dark"
+    modules: ["lighting_req", "vfx_req", "audio_req", "tech_req", "asset_list"]
+
+output:
+  output_type: "view"
+  format: "html_single_file"
+  output_path: "outputs/{case_id}/deck/index.html"
+  side_effects:
+    - "outputs/{case_id}/deck/motion.min.js  (硬拷贝，离线兜底)"
+    - "iframe src 指向 ../{module}.html（不复制模块文件，原地引用）"
+  structure:
+    default_pages_spatial: 17    # 空间类满配: 1 cover + 4 act_dividers + 11 modules + 1 coda
+    default_pages_gameplay: 12   # 玩法类裁剪后: 1 cover + 4 act_dividers + 6 modules + 1 coda
+    page_calculation: "1 + len(acts_filtered) + sum(len(act.modules_filtered)) + 1"
+    rhythm:
+      hero_dark_min: 2   # cover + 至少 1 个 hero dark act_divider
+      hero_light_min: 2  # 至少 1 个 hero light act_divider + coda
+      max_consecutive_same_theme: 11  # 中段连续 module_wrap 都是 light（iframe 隔离不算违反）
+    sections:
+      - "L1 cover (hero dark) — 关卡名/玩法名 + 一句话 hook"
+      - "L2 act_divider × N (hero light/dark 交替) — N 个 act 的章节封面（N 按实际有产物的 act 数量动态）"
+      - "L3 module_wrap × N (light) — iframe 包装的 N 个模块（按 act 分组，仅含 manifest 中非 skipped 且文件存在的）"
+      - "L5 coda (hero light) — 收束 + 元数据展示"
+    removed_in_v0_2_1:
+      - "L4 open_loops — uncertainty_flags 是 log 噪音不应面向团队，永久移除"
+
+theme_mapping:
+  # case_type → theme（render_deck.js 依据 IR.type 自动选择）
+  # 实际遇到的 type 优先；未在表中的 type fallback 到 ink_classic（墨水经典最通用）
+  default: "ink_classic"
+  rules:
+    - case_type: "POI"
+      theme: "dune"
+      rationale: "潜行 / 夜晚 / 复合空间，沙丘的炭灰沙色契合（case_05_gangster_mansion / case_02_artmuseum）"
+    - case_type: "OpenWorldEvent"
+      theme: "forest_ink"
+      rationale: "开放世界动态事件，森林墨的森绿+象牙体现开放感与生命力（case_01_truck / case_03_continuous_destroy / case_04_eavesdrop）"
+    - case_type: "MECHANIC"
+      theme: "ink_classic"
+      rationale: "玩法系统类，墨水经典通用稳（暂未实际遇到）"
+    - case_type: "STRATEGY"
+      theme: "indigo_porcelain"
+      rationale: "战略 / 系统设计 / 技术评审，靛蓝瓷理性（暂未实际遇到）"
+    - case_type: "NARRATIVE"
+      theme: "kraft_paper"
+      rationale: "叙事 / 文化 / 人文，牛皮纸（暂未实际遇到）"
+
+quality:
+  auto_checks:
+    - name: "no_placeholder_residue"
+      rule: "渲染产物不得包含 '{{', '[必填]', 'TODO' 等占位符"
+      severity: "error"
+    - name: "theme_rhythm"
+      rule: "≥1 hero dark + ≥1 hero light；4 个 act_divider 必须 light/dark 交替；module_wrap 段允许连续 light（iframe 隔离视觉断开）"
+      severity: "error"
+    - name: "class_predefined"
+      rule: "deck 容器层所有 class 必须来自 template.html 的 <style> 块；不允许在 module_wrap 内 inline 重写"
+      severity: "warning"
+    - name: "iframe_src_valid"
+      rule: "所有 module_wrap 的 iframe src 文件必须存在于 outputs/{case_id}/"
+      severity: "error"
+    - name: "iframe_loading_lazy"
+      rule: "所有 iframe 必须 loading=\"lazy\"，避免一次性加载 11 模块拖慢首屏"
+      severity: "error"
+    - name: "manifest_gate"
+      rule: "manifest.ir.status == 'confirmed' AND manifest.assembly.status == 'assembled' 才允许渲染"
+      severity: "error"
+
+downstream: []
+
+notes:
+  - "v0.2.1 (2026-04-27): 删除 open_loops layout（uncertainty_flags 是 log 噪音）+ 永久移除 spatial_topology 引用（v2.4 已废弃）+ 加入玩法 vs 关卡术语切换"
+  - "v0.2.0 (2026-04-27): 方向修正，删除叙事重构 layouts。从 11 layout 砍到 5 layout"
+  - "render_deck.js v0.2.1 已实现，4 case 验证通过"
+  - "deck 失败不阻塞 pipeline 的 score / lock"
+  - "iframe 内独立滚动，外层 deck 横向翻页"
+  - "永不引用: spatial_topology (v2.4 移除) / uncertainty_flags 输出 (用户反馈 log 噪音)"

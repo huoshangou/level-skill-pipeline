@@ -5,14 +5,14 @@ Add-Type -AssemblyName System.Drawing
 # ── Paths ──
 $scriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $claudeDir   = Join-Path $env:USERPROFILE ".claude"
-$installDir  = Join-Path $claudeDir "level-skill-pipeline"
+$installDir  = Join-Path $claudeDir "levelagent"
 $commandsDir = Join-Path $claudeDir "commands"
 $dataDir     = Join-Path $scriptDir "data"
 $cmdsDir     = Join-Path $scriptDir "commands"
 
 # ── Log file ──
 $ts        = Get-Date -Format "yyyyMMdd_HHmmss"
-$logFile   = Join-Path $env:USERPROFILE "level-skill-pipeline_install_$ts.log"
+$logFile   = Join-Path $env:USERPROFILE "levelagent_install_$ts.log"
 $startTime = Get-Date
 
 function Write-LogLine($msg) {
@@ -23,7 +23,7 @@ function Write-LogLine($msg) {
 # Header
 $header = @(
     "===========================================",
-    " Level Skill Pipeline Installer Log",
+    " LevelAgent Installer Log",
     " Time:     $(Get-Date)",
     " Host:     $env:COMPUTERNAME",
     " User:     $env:USERNAME",
@@ -55,7 +55,7 @@ $fontMono   = New-Object System.Drawing.Font("Consolas", 9)
 
 # ── Main Form ──
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Level Skill Pipeline Installer"
+$form.Text = "LevelAgent Installer"
 $form.Size = New-Object System.Drawing.Size(520, 530)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
@@ -66,7 +66,7 @@ $form.Font = $fontNormal
 
 # ── Title ──
 $lblTitle = New-Object System.Windows.Forms.Label
-$lblTitle.Text = "Level Skill Pipeline"
+$lblTitle.Text = "LevelAgent"
 $lblTitle.Font = $fontTitle
 $lblTitle.ForeColor = $textColor
 $lblTitle.Location = New-Object System.Drawing.Point(30, 20)
@@ -294,8 +294,10 @@ $btnInstall.Add_Click({
         }
         Copy-Item (Join-Path $cmdsDir "input-processor.md") (Join-Path $commandsDir "input-processor.md") -Force
         Copy-Item (Join-Path $cmdsDir "design-level.md") (Join-Path $commandsDir "design-level.md") -Force
+        Copy-Item (Join-Path $cmdsDir "level-deck.md") (Join-Path $commandsDir "level-deck.md") -Force
         Log "  input-processor.md  ->  OK"
         Log "  design-level.md     ->  OK"
+        Log "  level-deck.md       ->  OK"
         SetProgress 60 "Slash commands installed."
 
         # Step 3

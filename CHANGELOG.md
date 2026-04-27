@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.2 — 2026-04-27
+
+**新增 Deck 视图层**（横向翻页杂志风文档）：
+- `contracts/views/deck/`（README + contract.yaml + template.html + layouts.md + checklist.md + motion.min.js）
+- `pipeline/render_deck.js`（用法 `node pipeline/render_deck.js <case_id> [--portable]`）
+  - 默认输出 `deck/index.html`（同目录 iframe 引用，本地预览快、文件小）
+  - `--portable` 输出 `deck/portable.html`（srcdoc 内联模块，单文件 ~30-60MB，可直接发微信/钉钉）
+- `commands/level-deck.md` 独立 skill 入口
+- `commands/design-level.md` Phase 5.0 hook：锁定后 Y/L/N 交互生成 deck，失败不阻塞主流程
+
+**路径统一**：
+- 所有 commands 中 `~/.claude/level-skill-pipeline/...` 全局替换为 `~/.claude/levelagent/...`，与安装目标 `INSTALL_DIR=$CLAUDE_DIR/levelagent` 对齐
+- 修复 dist 用户安装后跑不通 node 命令的历史问题
+
+**安装脚本更新**：
+- `installers/installer.ps1` 与 `安装.command` 新增 `level-deck.md` 拷贝行
+
+**累积同步**（自 v1.1 后开发分叉的回流）：
+- 项目治理文档：`CLAUDE.md` / `README.md` / `changelog.md`
+- 跨案例知识索引：`contracts/case_index.json`（含 v0.1 schema）
+- 类型规则：`contracts/level_type_rules.md` 已被 commands 引用
+- 新增脚本：`pipeline/{match_cases.js, regen_index.py, assemble_poi.py}`
+- 修改脚本：`pipeline/{extractors.js, scorer.js, run_pipeline.js}`
+- spatial_layout 增强计划：`contracts/skills/spatial_layout/EDITOR_ENHANCEMENT_PLAN.md`
+
+**11 模块**（同 v1.1）：
+level_overview · bubble_chart · emotion_curve · spatial_layout · asset_list · atmosphere_ref · storyboard · lighting_req · vfx_req · audio_req · tech_req
+
+---
+
 ## v1.1 — 2026-04-21
 
 **移除 spatial_topology 模块**（彻底清理，非软裁剪）：

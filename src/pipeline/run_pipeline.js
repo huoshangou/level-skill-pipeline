@@ -80,47 +80,6 @@ function findIrPath(caseId) {
     return null;
 }
 
-// v2.5: context 占用预算（防 32MB API 上限）
-// 估算"如果把这一 case 的所有产物 + 参考图原文塞进对话能有多大"
-const CONTEXT_BUDGET_WARN = 8 * 1024 * 1024;   // 8 MB
-const CONTEXT_BUDGET_FAIL = 16 * 1024 * 1024;  // 16 MB（API 32MB 的安全上界一半）
-
-function estimateContextBytes(mf, casePath) {
-    let total = 0;
-    const breakdown = { html: 0, refs: 0, ir: 0 };
-
-    // HTML 模块产物
-    if (fs.existsSync(casePath)) {
-        for (const f of fs.readdirSync(casePath)) {
-            if (f.endsWith('.html')) {
-                total += fs.statSync(path.join(casePath, f)).size;
-                breakdown.html += fs.statSync(path.join(casePath, f)).size;
-            }
-        }
-    }
-
-    // 参考图（从 manifest.reference_assets[].bytes 取，不读图本身）
-    if (Array.isArray(mf.reference_assets)) {
-        // base64 编码 ≈ 原字节 × 4/3
-        for (const a of mf.reference_assets) {
-            const b64Bytes = Math.ceil((a.bytes || 0) * 4 / 3);
-            total += b64Bytes;
-            breakdown.refs += b64Bytes;
-        }
-    }
-
-    // IR
-    const irPath = findIrPath(mf.case_id);
-    if (irPath && fs.existsSync(irPath)) {
-        breakdown.ir = fs.statSync(irPath).size;
-        total += breakdown.ir;
-    }
-
-    return { total, breakdown };
-}
-
-function fmtMB(n) { return (n / 1024 / 1024).toFixed(2) + ' MB'; }
-
 // ===== PHASE 0: 初始化 =====
 
 function phase0() {
@@ -188,21 +147,6 @@ function phase0() {
         }
     } else {
         ok(`提取器覆盖率: ${supported.length}/${modulesWithContract.length}（bubble_chart 需 LLM/算法，其余全覆盖）`);
-    }
-
-    // v2.5: context 占用预算（防 Claude API 32MB 上限）
-    const ctx = estimateContextBytes(mf, casePath);
-    const detail = `HTML ${fmtMB(ctx.breakdown.html)} + 参考图(base64) ${fmtMB(ctx.breakdown.refs)} + IR ${fmtMB(ctx.breakdown.ir)}`;
-    if (ctx.total >= CONTEXT_BUDGET_FAIL) {
-        err(`context 预算超限: ${fmtMB(ctx.total)} ≥ ${fmtMB(CONTEXT_BUDGET_FAIL)} (fail)`);
-        err(`  ${detail}`);
-        err('  会触发对话 32MB 上限。先压缩参考图（pipeline/ingest_image.js 默认拒收 >1.5MB），或拆 case。');
-        process.exit(2);
-    } else if (ctx.total >= CONTEXT_BUDGET_WARN) {
-        warn(`context 预算偏高: ${fmtMB(ctx.total)} ≥ ${fmtMB(CONTEXT_BUDGET_WARN)} (warn)`);
-        warn(`  ${detail}`);
-    } else {
-        ok(`context 预算: ${fmtMB(ctx.total)} (${detail})`);
     }
 
     return mf;

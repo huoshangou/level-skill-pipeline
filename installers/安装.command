@@ -1,5 +1,5 @@
 #!/bin/bash
-# Level Skill Pipeline Installer for macOS
+# LevelAgent Installer for macOS
 # Double-click this file in Finder to install.
 
 # Ensure we're executable
@@ -12,12 +12,12 @@ fi
 cd "$(dirname "$0")"
 
 CLAUDE_DIR="$HOME/.claude"
-INSTALL_DIR="$CLAUDE_DIR/level-skill-pipeline"
+INSTALL_DIR="$CLAUDE_DIR/levelagent"
 COMMANDS_DIR="$CLAUDE_DIR/commands"
 
 # ── Log file ──
 TS="$(date +%Y%m%d_%H%M%S)"
-LOG_FILE="$HOME/level-skill-pipeline_install_${TS}.log"
+LOG_FILE="$HOME/levelagent_install_${TS}.log"
 mkdir -p "$CLAUDE_DIR" 2>/dev/null
 START_EPOCH=$(date +%s)
 
@@ -49,7 +49,7 @@ run_capture() {
 # ── Header ──
 {
     echo "==========================================="
-    echo " Level Skill Pipeline Installer Log"
+    echo " LevelAgent Installer Log"
     echo " Time:     $(date)"
     echo " Host:     $(hostname)"
     echo " User:     $USER"
@@ -64,7 +64,7 @@ run_capture() {
 clear
 echo ""
 echo "  ╔══════════════════════════════════════════╗"
-echo "  ║       Level Skill Pipeline Installer v1.0          ║"
+echo "  ║       LevelAgent Installer v1.0          ║"
 echo "  ║  Level Design AI Agent for Claude Code   ║"
 echo "  ╚══════════════════════════════════════════╝"
 echo ""
@@ -153,7 +153,8 @@ if [ "$INSTALL_FAILED" = 0 ]; then
     say "  [2/4] Installing slash commands..."
     if mkdir -p "$COMMANDS_DIR" 2>>"$LOG_FILE" \
         && cp "commands/input-processor.md" "$COMMANDS_DIR/" 2>>"$LOG_FILE" \
-        && cp "commands/design-level.md" "$COMMANDS_DIR/" 2>>"$LOG_FILE"; then
+        && cp "commands/design-level.md" "$COMMANDS_DIR/" 2>>"$LOG_FILE" \
+        && cp "commands/level-deck.md" "$COMMANDS_DIR/" 2>>"$LOG_FILE"; then
         say "         Done."
         log "  Commands present: $(ls -1 "$COMMANDS_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')"
     else

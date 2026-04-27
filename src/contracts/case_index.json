@@ -1,0 +1,121 @@
+{
+  "version": "0.1",
+  "description": "跨案例知识索引。用于新关卡设计输入时确定性匹配相似已有案例（type + mechanics_tag + emotions_top 多字段交集），代替 LLM 联想式检索。",
+  "last_updated": "2026-04-27",
+  "schema": {
+    "id": "case 目录名",
+    "level_name": "中文显示名",
+    "type": "POI | MainMission | SideQuest | OpenWorldEvent | OpenWorldChallenge",
+    "level_id": "完整 level id",
+    "mechanics_tag": "稳定的英文 tag 数组（用于跨案例匹配；不同 case 的同类机制必须用相同 tag）",
+    "mechanics_zh": "原始中文 mechanic 名称（来自 ir_filled.json，仅供参考，不用于匹配）",
+    "emotions_top": "去重 + 频次降序的 emotion 标签（取前 6）",
+    "overall_tone": "FEEL.overall_tone 原文摘录",
+    "region_count": "SPACE.regions 数量（设计师参考，POI 偏多预警）",
+    "node_count": "FLOW.nodes 数量（流程图节点数，>15 偏复杂预警）",
+    "ir_path": "相对 LevelAgent 根目录的路径",
+    "outputs_path": "已组装产物目录（可能为 null）",
+    "key_learnings": "v0.1 由 LLM 初拟，需 Steve 审查；后续每个新案例完成后由 design-level skill 主动追加"
+  },
+  "tag_taxonomy_note": "mechanics_tag 是受控词汇表。新案例引入新 tag 必须在此索引中累积（避免同义异名）。建议命名：英文小写 + 下划线，动词性优先。",
+  "matching_rules_note": "匹配优先级：type 完全一致 (硬约束) → mechanics_tag 交集 ≥1 (强信号) → emotions_top 交集 ≥2 (弱信号)。匹配产出 top 2-3 推荐供设计师参考。",
+  "cases": [
+    {
+      "id": "case_01_truck",
+      "level_name": "动态货运卡车 Actor 玩法",
+      "type": "OpenWorldEvent",
+      "level_id": "gameplay_truck_dock_01",
+      "mechanics_tag": ["vehicle_ride", "pursuit", "stealth", "dynamic_event"],
+      "mechanics_zh": ["上下文接入", "搭载平台", "离开机制", "奖励获取", "追逐躲藏（高光用途）"],
+      "emotions_top": ["tension_low", "calm", "wonder", "tension_high", "tension_spike", "excitement"],
+      "overall_tone": "车流中的机会性交互体验。基础循环：发现→追近→冲入→获取奖励→离开，轻快流畅。高光时刻：追逐中躲藏（警察丢失目标）或突破禁区进入限制区域（合金装备纸箱式体验）",
+      "region_count": 5,
+      "node_count": 12,
+      "ir_path": "test_cases/case_01_truck/ir_filled.json",
+      "outputs_path": "outputs/case_01_truck/",
+      "key_learnings": [
+        "动态事件需用概念区域代替实体空间（regions 表示状态而非地图）",
+        "loop 返回路径需机制保证（避免设计成单程一次性）",
+        "事故记录：32MB 上下文撞死会话，催生上下文预算红线（v2.5）"
+      ]
+    },
+    {
+      "id": "case_02_artmuseum",
+      "level_name": "好莱坞艺术馆",
+      "type": "POI",
+      "level_id": "poi_hollywood_artmuseum_01",
+      "mechanics_tag": ["stealth", "exploration", "qte", "gadget_use"],
+      "mechanics_zh": ["涂鸦玩法", "保险箱玩法", "QTE逃脱", "潜行", "烟雾装置"],
+      "emotions_top": ["tension_high", "tension_low", "excitement", "tension_spike", "relief"],
+      "overall_tone": "潜入+涂鸦的渐进紧张体验，从低强度探索铺垫逐步升级到高潮逃脱",
+      "region_count": 6,
+      "node_count": 17,
+      "ir_path": "test_cases/case_02_artmuseum/ir_filled.json",
+      "outputs_path": "outputs/case_02_artmuseum/",
+      "key_learnings": [
+        "POI 17 节点超出建议上限 (12)，已显复杂 — 多分支 QTE 是节点膨胀主因",
+        "POI 必须用 case_instance 层组织流程曲线（非纯 mechanic 抽象）"
+      ]
+    },
+    {
+      "id": "case_03_continuous_destroy",
+      "level_name": "大世界载具玩法 - 连续破坏",
+      "type": "OpenWorldEvent",
+      "level_id": "gameplay_continuous_destroy_01",
+      "mechanics_tag": ["vehicle_ride", "destruction", "combo_system", "flow_state"],
+      "mechanics_zh": ["低阻力可破坏物碰撞", "连击判定系统", "弱引导路径", "区域管理器", "变体A：区间破坏挑战"],
+      "emotions_top": ["triumph", "calm", "wonder", "anticipation", "surprise_positive", "flow"],
+      "overall_tone": "低门槛高爽感的节奏性体验。核心情绪弧：平静→好奇→惊喜→心流→高潮满足。基础玩法为被动触发的微玩法，无缝嵌入驾驶体验。变体A为主动参与的挑战玩法，情绪弧更完整（期待→紧张→结算成就感）。",
+      "region_count": 6,
+      "node_count": 17,
+      "ir_path": "test_cases/case_03_continuous_destroy/ir_filled.json",
+      "outputs_path": "outputs/case_03_continuous_destroy/",
+      "key_learnings": [
+        "心流玩法的情绪曲线模板：calm→wonder→anticipation→flow→triumph",
+        "「被动玩法可包装为主动挑战变体」的设计转化样本（基础 vs 变体A）"
+      ]
+    },
+    {
+      "id": "case_04_eavesdrop",
+      "level_name": "窃听玩法",
+      "type": "OpenWorldEvent",
+      "level_id": "gameplay_eavesdrop",
+      "mechanics_tag": ["stealth", "eavesdrop", "narrative_collection", "state_machine"],
+      "mechanics_zh": ["偷听核心机制", "A类：演出型偷听", "B类：碎片型偷听", "偷听点状态机"],
+      "emotions_top": ["tension_low", "curiosity", "anticipation", "immersion", "satisfaction", "tension_medium"],
+      "overall_tone": "潜行谍报感——A类提供沉浸叙事体验，B类提供紧张的碎片化情报收集体验",
+      "region_count": 2,
+      "node_count": 12,
+      "ir_path": "test_cases/case_04_eavesdrop/ir_filled.json",
+      "outputs_path": "outputs/case_04_eavesdrop/",
+      "key_learnings": [
+        "极小空间（2 区域）+ 状态机即可承载完整叙事循环",
+        "概念性区域（5m 球形检测区）的标准建模范式"
+      ]
+    },
+    {
+      "id": "case_05_gangster_mansion",
+      "level_name": "黑帮大宅",
+      "type": "POI",
+      "level_id": "poi_littletokyo_gangstermansion_01",
+      "mechanics_tag": ["stealth", "observation", "qte", "parkour", "boss_fight", "environmental_storytelling", "hub_puzzle"],
+      "mechanics_zh": ["潜行/暗杀", "光影观察", "信物通行 vs 潜入", "QTE 拔枪射影", "屋顶追逐跑酷", "杀手 BOSS 决战", "知识锁解谜 (HUB)", "环境叙事收集", "白狐雕像交互", "可交互抽屉", "障子门破坏"],
+      "emotions_top": ["tension_high", "tension_low", "wonder", "tension_spike", "excitement", "relief"],
+      "overall_tone": "弱光照夜晚的潜行主导体验。情绪曲线整体处于中等区间（0.3-0.7），在关键节点（QTE 射影 / 屋顶跑酷 / 中央庭院 BOSS / Boss 房决战）形成相对峰值，但不追求极端 spike——保持潜入特有的紧致、克制、不放飞的张力。",
+      "region_count": 22,
+      "node_count": 34,
+      "ir_path": "test_cases/case_05_gangster_mansion/ir_filled.json",
+      "outputs_path": "outputs/case_05_gangster_mansion/",
+      "key_learnings": [
+        "项目内最复杂案例（22 region / 34 node），可作为复杂度上限参考",
+        "潜入类反直觉：刻意维持情绪中等区间（0.3-0.7），不追求极端 spike",
+        "暴露 7 项流程缺陷（F1-F7，spatial_topology 连接错乱 + layout 3D 偏差等），见 ITERATION_SUMMARY.md"
+      ]
+    }
+  ],
+  "next_case_workflow": {
+    "step_1": "新案例 IR 完成后，在 design-level skill Phase 1 末尾追加：调用 case_index 匹配 → 输出 top 2-3 相似案例供设计师参考",
+    "step_2": "新案例完成后，更新本索引：追加 entry，并补充该案例的 key_learnings",
+    "step_3": "若引入新 mechanics_tag，在 tag_taxonomy_note 末尾追加新 tag 的定义"
+  }
+}

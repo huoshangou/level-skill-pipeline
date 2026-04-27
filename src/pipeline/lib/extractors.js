@@ -524,6 +524,232 @@ function extractEmotionCurve(irSlice) {
     };
 }
 
+// ============================================================================
+// 力导向布局算法 (Fruchterman-Reingold)
+// 输入: nodes [{id}], edges [[fromId, toId]], options
+// 输出: { [id]: { x, y } }
+// ============================================================================
+function forceDirectedLayout(nodes, edges, options = {}) {
+    const { width = 900, height = 600, padding = 80, iterations = 400 } = options;
+    const n = nodes.length;
+    if (n === 0) return {};
+
+    const W = width - padding * 2;
+    const H = height - padding * 2;
+    const K = Math.sqrt((W * H) / n); // 最优弹簧长度
+
+    // 确定性圆形初始化（无随机）
+    const pos = {};
+    nodes.forEach((node, i) => {
+        const angle = (2 * Math.PI * i) / n;
+        const r = Math.min(W, H) * 0.38;
+        pos[node.id] = {
+            x: padding + W / 2 + r * Math.cos(angle),
+            y: padding + H / 2 + r * Math.sin(angle),
+        };
+    });
+
+    // 迭代（线性降温退火）
+    for (let iter = 0; iter < iterations; iter++) {
+        const temp = K * Math.max(0.05, 1 - iter / iterations);
+        const disp = {};
+        nodes.forEach(node => { disp[node.id] = { x: 0, y: 0 }; });
+
+        // 斥力：两两节点互相排斥
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const a = nodes[i], b = nodes[j];
+                let dx = pos[a.id].x - pos[b.id].x;
+                let dy = pos[a.id].y - pos[b.id].y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.5) { dx = 0.5; dy = 0.5; dist = Math.sqrt(0.5); }
+                const f = (K * K) / dist;
+                disp[a.id].x += (dx / dist) * f;
+                disp[a.id].y += (dy / dist) * f;
+                disp[b.id].x -= (dx / dist) * f;
+                disp[b.id].y -= (dy / dist) * f;
+            }
+        }
+
+        // 引力：连接的节点相互吸引
+        for (const [fromId, toId] of edges) {
+            if (!pos[fromId] || !pos[toId]) continue;
+            const dx = pos[fromId].x - pos[toId].x;
+            const dy = pos[fromId].y - pos[toId].y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 0.5;
+            const f = (dist * dist) / K;
+            disp[fromId].x -= (dx / dist) * f;
+            disp[fromId].y -= (dy / dist) * f;
+            disp[toId].x += (dx / dist) * f;
+            disp[toId].y += (dy / dist) * f;
+        }
+
+        // 应用位移（温度限幅 + 边界约束）
+        nodes.forEach(node => {
+            const d = disp[node.id];
+            const dlen = Math.sqrt(d.x * d.x + d.y * d.y) || 0.5;
+            const scale = Math.min(dlen, temp) / dlen;
+            pos[node.id].x = Math.max(padding, Math.min(padding + W, pos[node.id].x + d.x * scale));
+            pos[node.id].y = Math.max(padding, Math.min(padding + H, pos[node.id].y + d.y * scale));
+        });
+    }
+
+    return pos;
+}
+
+// ============================================================================
+// spatial_topology 提取器（draw.io mxGraph XML 版）
+// ============================================================================
+function extractSpatialTopology(irSlice) {
+    const regions = irSlice.SPACE?.regions || [];
+    const criticalPath = irSlice.SPACE?.critical_path || [];
+
+    // 节点尺寸与字号
+    const nodeW = regions.length > 12 ? 100 : 120;
+    const nodeH = regions.length > 12 ? 44 : 52;
+    const fontSize = regions.length > 12 ? 10 : 12;
+
+    // 画布尺寸
+    const cols = Math.ceil(Math.sqrt(regions.length));
+    const canvasW = Math.max(1000, cols * 180 + 200);
+    const canvasH = Math.max(700, Math.ceil(regions.length / cols) * 160 + 160);
+
+    // 有向边列表（保留方向，供 draw.io 渲染箭头）
+    const directedEdges = [];
+    for (const r of regions) {
+        for (const connId of (r.connections || [])) {
+            directedEdges.push([r.id, connId]);
+        }
+    }
+
+    // 无向去重边列表（用于力导向布局坐标计算）
+    const layoutEdgeSet = new Set();
+    const layoutEdges = [];
+    for (const [a, b] of directedEdges) {
+        const key = [a, b].sort().join('|');
+        if (!layoutEdgeSet.has(key)) {
+            layoutEdgeSet.add(key);
+            layoutEdges.push([a, b]);
+        }
+    }
+
+    // 力导向布局
+    const nodePositions = forceDirectedLayout(
+        regions,
+        layoutEdges,
+        { width: canvasW, height: canvasH, padding: nodeW * 0.6, iterations: 450 }
+    );
+    const critSet = new Set(criticalPath);
+
+    // XML 属性值安全转义
+    function xmlAttr(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // 构建 mxGraph XML cells
+    const cellLines = [
+        '<mxCell id="0" />',
+        '<mxCell id="1" parent="0" />',
+    ];
+
+    // ① 边（先定义 → 渲染在节点下方）
+    const edgesSeen = new Set();
+    for (const [fromId, toId] of directedEdges) {
+        const edgeId = `e_${fromId}_${toId}`;
+        if (edgesSeen.has(edgeId)) continue;
+        edgesSeen.add(edgeId);
+        if (!nodePositions[fromId] || !nodePositions[toId]) continue;
+
+        const isCrit = critSet.has(fromId) && critSet.has(toId);
+        const strokeColor = isCrit ? '#FF4500' : '#999999';
+        const sw = isCrit ? 3 : 1.5;
+        const dashed = isCrit ? 0 : 1;
+        const arrowStyle = isCrit
+            ? 'endArrow=block;endFill=1;'
+            : 'endArrow=open;endSize=8;';
+
+        cellLines.push(
+            `<mxCell id="${xmlAttr(edgeId)}" ` +
+            `style="edgeStyle=none;curved=1;${arrowStyle}` +
+            `strokeColor=${strokeColor};strokeWidth=${sw};dashed=${dashed};" ` +
+            `edge="1" source="${xmlAttr(fromId)}" target="${xmlAttr(toId)}" parent="1">` +
+            `<mxGeometry relative="1" as="geometry" /></mxCell>`
+        );
+    }
+
+    // ② 节点（后定义 → 渲染在边上方）
+    for (const r of regions) {
+        const pos = nodePositions[r.id];
+        if (!pos) continue;
+        const isCrit = critSet.has(r.id);
+        const fillColor = isCrit ? '#FFE8E0' : '#EEF1FF';
+        const strokeColor = isCrit ? '#FF4500' : '#4169E1';
+        const sw = isCrit ? 3 : 2;
+        const dashed = isCrit ? 0 : 1;
+
+        cellLines.push(
+            `<mxCell id="${xmlAttr(r.id)}" value="${xmlAttr(r.name)}" ` +
+            `style="rounded=1;whiteSpace=wrap;html=1;fontSize=${fontSize};fontStyle=1;` +
+            `fillColor=${fillColor};strokeColor=${strokeColor};strokeWidth=${sw};dashed=${dashed};" ` +
+            `vertex="1" parent="1">` +
+            `<mxGeometry x="${pos.x.toFixed(0)}" y="${pos.y.toFixed(0)}" ` +
+            `width="${nodeW}" height="${nodeH}" as="geometry" /></mxCell>`
+        );
+    }
+
+    // 拼 mxGraphModel XML
+    const mxXml = [
+        `<mxGraphModel dx="${canvasW}" dy="${canvasH}" grid="0" gridSize="10" guides="0" tooltips="1" connect="0" arrows="1" fold="0" page="0" pageScale="1" pageWidth="${canvasW}" pageHeight="${canvasH}" math="0" shadow="0">`,
+        '  <root>',
+        ...cellLines.map(l => '    ' + l),
+        '  </root>',
+        '</mxGraphModel>',
+    ].join('\n');
+
+    // JSON 序列化后进行 HTML 实体编码，确保安全嵌入 data-mxgraph="" 属性
+    const drawioConfig = JSON.stringify({ xml: mxXml, highlight: '#FF4500', nav: false, resize: false, fit: true, border: 20, toolbar: 'zoom' })
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    // 表格行 REPEAT
+    const tableRows = regions.map(r => {
+        const conns = (r.connections || []).map(c => {
+            const cr = regions.find(rr => rr.id === c);
+            return cr?.name || c;
+        }).join(', ') || '—';
+        const isCrit = critSet.has(r.id);
+        return {
+            region_id: r.id,
+            region_name: r.name,
+            region_function: r.function || '—',
+            floor: r.elevation || '地面层',
+            connections: conns,
+            path_type: isCrit ? '主路径' : '可选',
+            path_tag: isCrit ? 'critical' : 'optional',
+            space_description: r.spatial_notes || '—',
+        };
+    });
+
+    return {
+        vars: {
+            level_id: irSlice.level_id || '',
+            level_name: irSlice.level_name || '',
+            region_count: regions.length,
+            environment: irSlice.SPACE?.environment_type || '—',
+            area_desc: irSlice.SPACE?.total_area_estimate || '—',
+            drawio_config: drawioConfig,
+            drawio_height: canvasH,
+            timestamp: ts(),
+        },
+        repeats: [tableRows],
+    };
+}
 
 // ============================================================================
 // spatial_layout 提取器
@@ -890,6 +1116,7 @@ module.exports = {
     extractAtmosphereRef,
     extractTechReq,
     extractEmotionCurve,
+    extractSpatialTopology,
     extractSpatialLayout,
     extractStoryboard,
     extractBubbleChart,
