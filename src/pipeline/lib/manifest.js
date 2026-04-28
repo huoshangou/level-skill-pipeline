@@ -10,8 +10,8 @@ const path = require('path');
 const crypto = require('crypto');
 
 const MODULE_ORDER = [
-    'level_overview', 'bubble_chart', 'emotion_curve',
-    'spatial_layout', 'asset_list', 'atmosphere_ref', 'storyboard', 'lighting_req',
+    'level_overview', 'spatial_layout', 'bubble_chart', 'emotion_curve',
+    'asset_list', 'atmosphere_ref', 'storyboard', 'lighting_req',
     'vfx_req', 'audio_req', 'tech_req',
 ];
 

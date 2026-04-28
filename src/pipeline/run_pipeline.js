@@ -35,12 +35,13 @@ const { fillModule, getSupportedModules } = require('./fill_template');
 const args = process.argv.slice(2);
 const caseDir = args.find(a => !a.startsWith('--'));
 if (!caseDir) {
-    console.error('用法: node pipeline/run_pipeline.js <case_dir> [--from=N] [--to=N]');
+    console.error('用法: node pipeline/run_pipeline.js <case_dir> [--from=N] [--to=N] [--legacy-pause]');
     process.exit(1);
 }
 
 let fromPhase = 0;
 let toPhase = 6;
+const legacyPause = args.includes('--legacy-pause'); // 回退旗标：恢复每模块单独 pause 行为
 for (const arg of args) {
     if (arg.startsWith('--from=')) fromPhase = parseInt(arg.split('=')[1], 10);
     if (arg.startsWith('--to=')) toPhase = parseInt(arg.split('=')[1], 10);
@@ -257,6 +258,8 @@ function phase3(mf) {
     const supported = getSupportedModules();
     const pending = [];
     const autoFilled = [];
+    // v2.4: 跨模块聚合的 pendingConfirms（key = module, items = [{field,currentValue,hint,ir_path?}]）
+    const allPendingConfirms = []; // [{module, field, ir_path?, currentValue, hint}]
 
     // 加载 IR（自动填充需要）
     const irPath = findIrPath(mf.case_id);
@@ -271,27 +274,48 @@ function phase3(mf) {
             ok(`${key}: v${mf.modules[key].version} ${status}，跳过`);
         } else if (status === 'skipped') {
             info(`${key}: skipped（按类型规则跳过）`);
-        } else if (status === 'generated') {
-            info(`${key}: generated（等待确认）`);
+        } else if (status === 'generated' || status === 'pending_confirm') {
+            info(`${key}: ${status}（等待确认）`);
         } else if (supported.includes(key) && irData) {
             // 有提取器 → 自动填充
             info(`${key}: 有模板提取器，自动填充...`);
             const result = fillModule(irData, key, { caseDir: casePath });
             if (result.success) {
-                // v2.3: HITL 确认检查 — 有待确认字段时暂停
+                // v2.4 新模式：聚合 pendingConfirms（不在此模块 pause）
+                // v2.3 旧模式（--legacy-pause）：保留原来的每模块单独 pause 行为
                 if (result.pendingConfirms && result.pendingConfirms.length > 0) {
-                    // 先写入 HTML（含 [待确认] 标记），但不标为 generated
+                    // 先写入 HTML（含 [待确认] 标记）
                     const outPath = path.join(casePath, `${key}.html`);
                     fs.writeFileSync(outPath, result.html, 'utf-8');
 
-                    console.log('');
-                    warn(`${key}: ${result.pendingConfirms.length} 个字段需用户确认:`);
-                    if (result.templateVariant) info(`模板变体: ${result.templateVariant}`);
-                    for (const item of result.pendingConfirms) {
-                        info(`  → ${item.field}: 当前值 "${item.currentValue}" — ${item.hint}`);
+                    if (legacyPause) {
+                        // --legacy-pause 回退模式：单模块 pause
+                        console.log('');
+                        warn(`${key}: ${result.pendingConfirms.length} 个字段需用户确认:`);
+                        if (result.templateVariant) info(`模板变体: ${result.templateVariant}`);
+                        for (const item of result.pendingConfirms) {
+                            info(`  → ${item.field}: 当前值 "${item.currentValue}" — ${item.hint}`);
+                        }
+                        pause(`请确认 ${key} 的待确认字段，修正 HTML 后重新运行 --from=3`);
+                        return 'pause';
                     }
-                    pause(`请确认 ${key} 的待确认字段，修正 HTML 后重新运行 --from=3`);
-                    return 'pause';
+
+                    // v2.4 聚合模式：写入 HTML，标记 pending_confirm，收集到 allPendingConfirms
+                    const hash = manifestLib.computeFileHash(outPath);
+                    manifestLib.updateModule(mf, key, {
+                        status: 'pending_confirm',
+                        version: 1,
+                        file_hash: hash,
+                        generated_at: new Date().toISOString(),
+                        ir_version_used: irData.version || '1.0.0',
+                    });
+                    manifestLib.save(casePath, mf);
+
+                    for (const item of result.pendingConfirms) {
+                        allPendingConfirms.push({ module: key, ...item });
+                    }
+                    warn(`${key}: ${result.pendingConfirms.length} 项待确认，已写入 HTML，继续...`);
+                    continue;
                 }
 
                 const outPath = path.join(casePath, `${key}.html`);
@@ -322,17 +346,60 @@ function phase3(mf) {
         ok(`自动填充完成: ${autoFilled.length} 个模块 (${autoFilled.join(', ')})`);
     }
 
+    // v2.4: 写入聚合的 pending_confirms 到 manifest，并输出汇总清单
+    if (allPendingConfirms.length > 0 && !legacyPause) {
+        mf = manifestLib.load(casePath);
+        mf.pending_confirms = allPendingConfirms;
+        if (!mf.confirmed_fields) mf.confirmed_fields = {};
+        manifestLib.save(casePath, mf);
+
+        console.log('');
+        hr();
+        console.log('  ⚠  HITL 待确认字段汇总（共 ' + allPendingConfirms.length + ' 项）');
+        hr();
+
+        // 按模块分组输出
+        const byModule = {};
+        for (const item of allPendingConfirms) {
+            if (!byModule[item.module]) byModule[item.module] = [];
+            byModule[item.module].push(item);
+        }
+        for (const [mod, items] of Object.entries(byModule)) {
+            console.log(`\n  [${mod}]`);
+            for (const item of items) {
+                const irPathNote = item.ir_path ? ` (ir: ${item.ir_path})` : '';
+                info(`  → ${item.field}: "${item.currentValue}"${irPathNote}`);
+                info(`     提示: ${item.hint}`);
+            }
+        }
+
+        console.log('');
+        console.log('  ▶  运行以下命令进入批量确认：');
+        console.log(`     node pipeline/confirm.js ${mf.case_id}`);
+        console.log('');
+        console.log('  · 确认完成后管线将自动重生成受影响模块，无需手动 --from=3');
+        console.log('  · 若要跳过确认直接继续，运行 --from=4（内容将保留 [待确认] 占位符）');
+        console.log('');
+    }
+
     if (pending.length === 0) {
         ok('所有模块已生成/确认/锁定/跳过');
 
-        // 检查是否有 generated 需要确认
-        const generated = manifestLib.MODULE_ORDER.filter(k =>
-            manifestLib.getModuleStatus(mf, k) === 'generated'
-        );
-        if (generated.length > 0) {
-            info(`${generated.length} 个模块等待确认: ${generated.join(', ')}`);
+        // 检查是否有 generated/pending_confirm 需要确认
+        const needsConfirm = manifestLib.MODULE_ORDER.filter(k => {
+            const s = manifestLib.getModuleStatus(mf, k);
+            return s === 'generated' || s === 'pending_confirm';
+        });
+        if (needsConfirm.length > 0 && allPendingConfirms.length === 0) {
+            // 没有新的 pendingConfirms，只是已有 generated 等待确认
+            info(`${needsConfirm.length} 个模块等待确认: ${needsConfirm.join(', ')}`);
             pause('请检查 generated 模块，确认后运行 --from=4 继续');
             return 'pause';
+        }
+
+        if (allPendingConfirms.length > 0) {
+            // 有 HITL 项：不 pause，输出汇总清单后让用户自行决定
+            return 'continue';
         }
 
         return 'continue';

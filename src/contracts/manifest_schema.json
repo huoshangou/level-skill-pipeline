@@ -51,8 +51,8 @@
           "properties": {
             "status": {
               "type": "string",
-              "enum": ["pending", "generated", "confirmed", "locked", "modification_requested", "modifying"],
-              "description": "pending=未生成, generated=已生成待确认, confirmed=用户确认, locked=评分通过不可重生成, modification_requested=已请求修改, modifying=修改中"
+              "enum": ["pending", "generated", "confirmed", "locked", "modification_requested", "modifying", "pending_confirm"],
+              "description": "pending=未生成, generated=已生成待确认, confirmed=用户确认, locked=评分通过不可重生成, modification_requested=已请求修改, modifying=修改中, pending_confirm=有字段待用户确认(HITL)"
             },
             "version": {
               "type": "integer",
@@ -142,6 +142,36 @@
         },
         "passed": { "type": ["boolean", "null"] },
         "scored_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+
+    "pending_confirms": {
+      "type": "array",
+      "description": "HITL 待确认字段列表（v2.4 新增）。由 run_pipeline.js Phase 3 聚合收集，由 confirm.js 消费清空。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": { "type": "string", "description": "来源模块 key，如 level_overview" },
+          "field": { "type": "string", "description": "字段名称（中文），如 '参考作品'" },
+          "ir_path": { "type": "string", "description": "IR JSON 路径，如 'meta.openness_level'，confirm.js 据此写回 IR" },
+          "currentValue": { "type": "string", "description": "当前填充值，通常是 '[待确认]'" },
+          "hint": { "type": "string", "description": "提示用户填写的说明" },
+          "suggested": { "type": "string", "description": "（可选）建议值" }
+        },
+        "required": ["module", "field", "currentValue", "hint"]
+      }
+    },
+
+    "confirmed_fields": {
+      "type": "object",
+      "description": "confirm.js 写入的确认值（IR 写回的 fallback 存储）。结构: { module_key: { field_name: confirmed_value } }",
+      "patternProperties": {
+        ".*": {
+          "type": "object",
+          "patternProperties": {
+            ".*": { "type": "string" }
+          }
+        }
       }
     },
 

@@ -22,9 +22,9 @@ $ARGUMENTS
 
 ## 项目路径
 
-- IR Schema: `~/.claude/levelagent/contracts/ir_schema.json`
-- 已有案例（知识库种子）: `~/.claude/levelagent/test_cases/`
-- 输出目录: `~/.claude/levelagent/test_cases/{case_id}/`
+- IR Schema: `~/.claude/level-skill-pipeline/contracts/ir_schema.json`
+- 已有案例（知识库种子）: `~/.claude/level-skill-pipeline/test_cases/`
+- 输出目录: `~/.claude/level-skill-pipeline/test_cases/{case_id}/`
 
 ---
 

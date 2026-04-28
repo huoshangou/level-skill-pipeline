@@ -1401,3 +1401,48 @@ case_01/02 模块从 11 → 10（spatial_topology 不再引用，旧 case 文件
 
 待办（不阻塞）：
 - 把 `~/LevelAgent/Makefile` 或 `package.json` 加一个 `npm run sync-dist` 脚本，rsync 真源到 dist + 验证 fresh install，自动化此流程。
+
+---
+
+## [2026-04-28] v2.5.8 — 真源认知归位 + HITL v2.4 整套回流
+
+### 改动
+
+**P3 — 模块顺序**
+- `pipeline/lib/manifest.js` MODULE_ORDER：`spatial_layout` 上移到 02 位（紧跟 `level_overview`），与 `assemble_document.js` 的 MODULE_ORDER 对齐。
+
+**HITL v2.4 整套回流**（D1-D4，从 ~/LevelAgent 历史副本回流到 src/ 真源）
+- `contracts/manifest_schema.json`：新增 `pending_confirm` 状态枚举 + `pending_confirms` 数组段 + `confirmed_fields` patternProperties 段（约 +30 行）。
+- `pipeline/run_pipeline.js`：v2.4 跨模块聚合 HITL 模式 — 所有模块跑完后输出汇总清单；新增 `--legacy-pause` 旗标兼容 v2.3 单模块 pause 行为。
+- `pipeline/fill_template.js`：6 个 OpenWorldEvent 类 pendingConfirm 字段补充 `ir_path`，让 `confirm.js` 据此写回 IR。
+- `pipeline/confirm.js`（新文件 287 行）：HITL 批量确认命令 `node pipeline/confirm.js <case_id>`，消费 `manifest.pending_confirms`、写回 IR / `confirmed_fields`、清空待办、自动重生成受影响模块。
+
+**路径整顿**
+- `commands/{design-level,input-processor}.md`：所有 `~/.claude/levelagent/*` 替换为 `~/.claude/level-skill-pipeline/*`（14 处）。配合本机删除 `~/.claude/levelagent` symlink。
+
+### 触发原因
+
+用户校对：长期被「~/LevelAgent 是真源」的错误 memory 误导，本会话基于错向 memory 做了一系列错向操作（误改 commands 软链方向、误写反向 sync-dist 脚本、误归档真源 git repo）。用户 rewind 纠正后，系统性整顿真源认知。
+
+**真源唯一**：`~/Desktop/level-skill-pipeline/`（GitHub `huoshangou/level-skill-pipeline` 的 clone），`src/` 是开发战场。  
+**~/LevelAgent/** 自即日起为只读历史副本，不再编辑。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `node pipeline/scorer.js outputs/case_01_truck` | ✓ 0.94 PASS, placeholder_leak CLEAN |
+| `node pipeline/confirm.js`（无参数 help） | ✓ 输出用法 |
+| commands 中 `levelagent` 残留 | 0 |
+| 内存条 LevelAgent 错向引用 | 全部修正为 src/ 路径或叙述性「历史副本」 |
+
+### 教训（已落地为 memory）
+
+- [feedback_verify_true_source_first.md](.claude/projects/-Users-mofashu/memory/feedback_verify_true_source_first.md) — 任何项目第一次涉入前必须 `git remote -v` 验证真源，不直接信 memory 中的"项目结构"陈述。
+
+### 跳过的回流（待后续按需推进）
+
+- D5 `ingest_image.js` → `ingest_images.js` v1.0 重写（可能依赖 sharp/jimp）
+- D6 `ir_diff.js`（M4.1，IR JSON path-level diff/applyPatch/formatReport，524 行）
+- D7 `lib/image_embed.js` 与 D5 的配套改动
+- D8/D9 多增的测试 case（case_03_continuous_destroy、case_04_eavesdrop）

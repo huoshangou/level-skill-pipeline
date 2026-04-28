@@ -412,14 +412,14 @@ registerExtractor('level_overview', function (irSlice) {
         vars.is_reusable_tag = 'yes';
         vars.reusable_detail = '';
 
-        // 收集需确认项
+        // 收集需确认项（ir_path: 对应 IR JSON 路径，confirm.js 据此写回；其余模块 TODO: 补充 ir_path）
         pendingConfirms.push(
-            { field: '参考作品', currentValue: vars.references, hint: '有哪些参考游戏/玩法？' },
-            { field: '预计单次时长', currentValue: vars.duration, hint: '单次玩法循环耗时' },
-            { field: '触发条件', currentValue: vars.trigger_condition, hint: '玩家如何进入此玩法' },
-            { field: '完成条件', currentValue: vars.completion_condition, hint: '什么算完成' },
-            { field: '中止条件', currentValue: vars.abort_condition, hint: '什么情况下被打断/退出' },
-            { field: '是否可复用', currentValue: vars.is_reusable, hint: '各类机制是否均可跨情境复用' },
+            { field: '参考作品', currentValue: vars.references, hint: '有哪些参考游戏/玩法？', ir_path: 'meta.references' },
+            { field: '预计单次时长', currentValue: vars.duration, hint: '单次玩法循环耗时', ir_path: 'meta.duration_estimate' },
+            { field: '触发条件', currentValue: vars.trigger_condition, hint: '玩家如何进入此玩法', ir_path: 'FLOW.trigger_condition' },
+            { field: '完成条件', currentValue: vars.completion_condition, hint: '什么算完成', ir_path: 'FLOW.completion_condition' },
+            { field: '中止条件', currentValue: vars.abort_condition, hint: '什么情况下被打断/退出', ir_path: 'FLOW.abort_condition' },
+            { field: '是否可复用', currentValue: vars.is_reusable, hint: '各类机制是否均可跨情境复用', ir_path: 'meta.is_reusable' },
         );
 
         // 机制卡片 REPEAT
@@ -446,12 +446,14 @@ registerExtractor('level_overview', function (irSlice) {
         }
 
         // 每个 3C 和合作需求项都需确认
+        // TODO(ir_path): 3C/合作需求无直接 IR 路径，confirm.js 写入 confirmed_fields fallback
         pendingConfirms.push(
             { field: '3C 需求表', currentValue: '6 项待填', hint: '移动/Camera/Locomotion/战斗/手持物/角色切换的具体约束' },
             { field: '合作需求清单', currentValue: '22 项待填', hint: '11 组合作需求的是/否判断' },
         );
 
         // 机制约束也需确认
+        // TODO(ir_path): 机制约束需 MECHANIC.mechanics[name].constraints 路径，待 M1 asset_binding.md 规范后补充
         for (const m of mechanics) {
             pendingConfirms.push({
                 field: `${m.name || m.id} 玩家行为约束`,
