@@ -18,6 +18,7 @@ src/test_cases/case_01_*
 src/test_cases/case_03_*
 src/test_cases/case_04_*
 src/test_cases/case_05_*
+src/test_cases/case_06_*
 
 # Installer logs
 *.log
